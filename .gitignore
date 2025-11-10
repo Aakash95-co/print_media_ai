@@ -4,3 +4,9 @@ media/
 ocrapp/utils/model/
 
 ocrapp/utils/SentimentAnalysis/
+
+__pycache__/
+*.pyc
+ocrapp/utils/tmp_fol/
+
+ocrapp/prabhag_utils/
