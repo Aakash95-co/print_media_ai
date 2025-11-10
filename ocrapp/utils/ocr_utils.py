@@ -14,6 +14,12 @@ from ultralytics import YOLO
 from doclayout_yolo import YOLOv10
 from django.conf import settings
 from ..models import ArticleInfo
+from .sql_executor import insert_news_analysis_entry
+from ocrapp.utils.govt_info import GovtInfo
+
+from ocrapp.prabhag_utils.prabhag import PrabhagPredictor
+prabhag_predictor = PrabhagPredictor()
+
 
 # ---- Load Models ----
 ARTICLE_MODEL = YOLO("/home/cmoadmin/am/print_media/ocrapp/utils/model/A-1.pt")
@@ -126,7 +132,11 @@ def process_pdf(pdf_path):
                 sentiment = analyze_sentiment(eng_text)
                 dist = "Unknown"
                 dist_token = None
-
+                is_govt, govt_word = GovtInfo.detect_govt_word(guj_text) 
+                category, cat_word, cat_id  = GovtInfo.detect_category(guj_text)
+                district, taluka, dcode, tcode = GovtInfo.detect_district(guj_text)
+                prabhag_name, prabhag_ID, confidence = prabhag_predictor.predict(eng_text)
+                print(f"{is_govt, govt_word, category, cat_word, district, taluka, cat_id, dcode, tcode, prabhag_name, prabhag_ID}")
                 # save crop image
                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
                 img_name = f"article_{page_num+1}_{i+1}_{ts}.png"
@@ -134,19 +144,59 @@ def process_pdf(pdf_path):
                 os.makedirs(os.path.dirname(save_path), exist_ok=True)
                 cv2.imwrite(save_path, crop)
 
-                ArticleInfo.objects.create(
+                article = ArticleInfo.objects.create(
+
                     pdf_name=os.path.basename(pdf_path),
                     page_number=page_num + 1,
                     article_id=f"Article_{i+1}",
                     gujarati_text=guj_text,
                     translated_text=eng_text,
                     sentiment=sentiment,
-                    district=dist,
-                    dist_token=dist_token,
+                    image=f"articles/{img_name}",
+
                     article_type="Unknown",
-                    article_category="Unknown",
-                    image=f"articles/{img_name}"
+                    article_category= category,
+                    category_word = cat_word ,
+                    cat_Id = cat_id,
+
+                    is_govt = is_govt ,
+                    govt_word = govt_word,
+
+                    district = district,
+                    dist_token=dist_token,
+                    distict_word = taluka,
+                    Dcode = dcode,
+                    Tcode = tcode ,
+                    
+                    prabhag = prabhag_name,
+                    prabhag_ID = prabhag_ID,
+
                 )
+                print(article.image)
+                #insert_news_analysis_entry(article)
+                article_info_insert = (
+                         article.page_number or 1,                              # 1 -> @Page_id INT
+                         i + 1 or 1,                                          # 2 -> @Article_id INT (✅ changed from string to int)
+                         article.pdf_name or "",                           # 3 -> @Newspaper_name NVARCHAR(200)
+                         str(article.image) or "", # article.image or "" ,                          # 4 -> @Article_link NVARCHAR(500)
+                         article.gujarati_text or "",                # 5 -> @Gujarati_Text NVARCHAR(MAX)
+                         article.translated_text or "",         # 6 -> @English_Text NVARCHAR(MAX)
+                         article.sentiment or "",               # 7 -> @Text_Sentiment NVARCHAR(100)
+                         article.is_govt or 0,                             # 8 -> @Is_govt BIT
+                         article.article_category or "",        #9 -> @Category NVARCHAR(200)
+                         article.prabhag or "",                       # 10 -> @Prabhag NVARCHAR(200)
+                         article.district or "",                # 11 -> @District NVARCHAR(200)
+                         article.Dcode or None,                                  # 12 -> @Dcode INT
+                         article.Tcode or "",            # 13 -> @Tcode VARCHAR(50)
+                         article.cat_Id or None,                                  # 14 -> @Cat_code INT
+                         article.article_type or "",             # 15 -> @Title NVARCHAR(500)
+                         0 ,                                     # 16 - prabhagID
+                )
+
+                # --------------------------------------------
+                # Push the data to SQL Server
+                # --------------------------------------------
+                insert_news_analysis_entry(article_info_insert)
             except Exception as e:
                 print("Error:", e)
     doc.close()
