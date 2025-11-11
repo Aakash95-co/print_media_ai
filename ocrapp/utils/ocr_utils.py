@@ -19,7 +19,7 @@ from ocrapp.utils.govt_info import GovtInfo
 from ocrapp.prabhag_utils.prabhag import PrabhagPredictor
 prabhag_predictor = PrabhagPredictor()
 from dotenv import load_dotenv
-
+from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 #load_dotenv(os.path.join(BASE_DIR, ".env"))
