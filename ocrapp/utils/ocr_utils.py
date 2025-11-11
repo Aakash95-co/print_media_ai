@@ -16,9 +16,14 @@ from django.conf import settings
 from ..models import ArticleInfo
 from .sql_executor import insert_news_analysis_entry
 from ocrapp.utils.govt_info import GovtInfo
-
 from ocrapp.prabhag_utils.prabhag import PrabhagPredictor
 prabhag_predictor = PrabhagPredictor()
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(os.path.join(BASE_DIR, ".env"))
+#load_dotenv(os.path.join(BASE_DIR, ".env"))
+
 
 #from pathlib import Path
 #BASE_DIR = Path(__file__).resolve().parent
@@ -34,7 +39,7 @@ LAYOUT_MODEL = YOLOv10(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "h2.pt
 ASR_API_URL = "https://dhruva-api.bhashini.gov.in/services/inference/pipeline"
 ASR_API_HEADERS = {
     "Content-Type": "application/json",
-    "Authorization": "PcYD3f6WgosaSlLXLa7K7f5OteKLYQ6Cjyn0dyHEt2Fm7Ho7Sq-oo44N73XZvdDs"
+    "Authorization": os.getenv("bhasini_KEY")
 }
 
 # ---- Sentiment ----
