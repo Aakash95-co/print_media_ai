@@ -20,10 +20,15 @@ from ocrapp.utils.govt_info import GovtInfo
 from ocrapp.prabhag_utils.prabhag import PrabhagPredictor
 prabhag_predictor = PrabhagPredictor()
 
+#from pathlib import Path
+#BASE_DIR = Path(__file__).resolve().parent
 
 # ---- Load Models ----
-ARTICLE_MODEL = YOLO("/home/cmoadmin/am/print_media/ocrapp/utils/model/A-1.pt")
-LAYOUT_MODEL = YOLOv10("/home/cmoadmin/am/print_media/ocrapp/utils/model/h2.pt")
+#ARTICLE_MODEL = YOLO("/home/cmoadmin/am/print_media/ocrapp/utils/model/A-1.pt")
+#LAYOUT_MODEL = YOLOv10("/home/cmoadmin/am/print_media/ocrapp/utils/model/h2.pt")
+
+ARTICLE_MODEL = YOLO(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "A-1.pt")
+LAYOUT_MODEL = YOLOv10(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "h2.pt")
 
 # ---- Translation ----
 ASR_API_URL = "https://dhruva-api.bhashini.gov.in/services/inference/pipeline"
@@ -34,6 +39,7 @@ ASR_API_HEADERS = {
 
 # ---- Sentiment ----
 SENT_MODEL_PATH = "/home/cmoadmin/am/print_media/ocrapp/utils/SentimentAnalysis/local_model"
+SENT_MODEL_PATH = settings.BASE_DIR / "ocrapp"  / "utils" / "SentimentAnalysis" / "local_model"
 TOKENIZER = AutoTokenizer.from_pretrained(SENT_MODEL_PATH)
 SENT_MODEL = AutoModelForSequenceClassification.from_pretrained(SENT_MODEL_PATH)
 
