@@ -129,14 +129,59 @@ def process_pdf(pdf_path):
                 x1, y1, x2, y2 = map(int, b.xyxy[0].tolist())
                 crop = img[y1:y2, x1:x2]
                 layout_preds = LAYOUT_MODEL.predict(crop, imgsz=1280, conf=0.2, verbose=False)
-                plain = []
-                for rect, cls_id in zip(layout_preds[0].boxes.xyxy.cpu().numpy(), layout_preds[0].boxes.cls.cpu().numpy()):
+
+                # --- Only process Title and Plain Text with conf > 0.5 ---
+                guj_title = ""
+                title_parts = []
+                plain_parts = []
+
+                result = layout_preds[0]
+                rects = result.boxes.xyxy.cpu().numpy()
+                cls_ids = result.boxes.cls.cpu().numpy()
+                confs = result.boxes.conf.cpu().numpy() if hasattr(result.boxes, "conf") else np.ones_like(cls_ids)
+
+                names = getattr(result, "names", None)
+                if names is None:
+                    names = getattr(LAYOUT_MODEL, "names", {}) or {}
+
+                def class_name(cid):
+                    try:
+                        return str(names[int(cid)])
+                    except Exception:
+                        return str(int(cid))
+
+                for rect, cls_id, conf in zip(rects, cls_ids, confs):
+                    if conf <= 0.5:
+                        continue
                     x1b, y1b, x2b, y2b = map(int, rect)
-                    sub_crop = crop[y1b:y2b, x1b:x2b]
-                    txt = ocr_crop(sub_crop)
-                    if txt:
-                        plain.append((x1b, txt))
-                guj_text = " ".join([t for _, t in sorted(plain, key=lambda x: x[0])])
+                    name_l = class_name(cls_id).lower()
+
+                    # Title detection
+                    if ("title" in name_l) or ("headline" in name_l):
+                        sub_crop = crop[y1b:y2b, x1b:x2b]
+                        txt = ocr_crop(sub_crop)
+                        if txt:
+                            title_parts.append((x1b, txt))
+                        continue
+
+                    # Plain text detection
+                    if any(k in name_l for k in ["text", "paragraph", "body", "plain"]):
+                        sub_crop = crop[y1b:y2b, x1b:x2b]
+                        txt = ocr_crop(sub_crop)
+                        if txt:
+                            plain_parts.append((x1b, txt))
+                        continue
+
+                    # Ignore all other classes
+                    continue
+
+                # Concatenate by ascending x-axis
+                if title_parts:
+                    guj_title = " ".join([t for _, t in sorted(title_parts, key=lambda x: x[0])])
+
+                guj_text = " ".join([t for _, t in sorted(plain_parts, key=lambda x: x[0])])
+                # --- End filtering ---
+
                 if not guj_text.strip():
                     continue
                 eng_text = translate_text(guj_text)
