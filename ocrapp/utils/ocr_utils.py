@@ -185,7 +185,28 @@ def process_pdf(pdf_path):
                 if not guj_text.strip():
                     continue
                 eng_text = translate_text(guj_text)
-                sentiment = analyze_sentiment(eng_text)
+
+                sentiment_gravity = 0.0 
+                sentiment_label = ""
+                sentiment_raw = analyze_sentiment(eng_text)  # e.g. "negative : 51.12%"
+                try:
+                    parts = sentiment_raw.split(":")
+                    sentiment_label = parts[0].strip()
+                    pct_str = parts[1].replace("%", "").strip()
+                    sentiment_gravity = float(pct_str)
+                except Exception:
+                    sentiment_label = sentiment_label
+                    sentiment_gravity = 0.0
+
+                sentiment = sentiment_label  # keep only label for DB as before
+
+                # Print title and sentiment gravity (not stored)
+                if guj_title:
+                    print(f"[Title] {guj_title}")
+                else:
+                    print("[Title] (none)")
+                print(f"[Sentiment] label={sentiment_label} gravity={sentiment_gravity}")
+
                 dist = "Unknown"
                 dist_token = None
                 is_govt, govt_word = GovtInfo.detect_govt_word(guj_text) 
@@ -205,10 +226,13 @@ def process_pdf(pdf_path):
                     pdf_name=os.path.basename(pdf_path),
                     page_number=page_num + 1,
                     article_id=f"Article_{i+1}",
+                    gujarati_title=guj_title,
                     gujarati_text=guj_text,
                     translated_text=eng_text,
-                    sentiment=sentiment,
                     image=f"articles/{img_name}",
+
+                    sentiment=sentiment,
+                    sentiment_gravity=sentiment_gravity,
 
                     article_type="Unknown",
                     article_category= category,
@@ -234,7 +258,7 @@ def process_pdf(pdf_path):
                          article.page_number or 1,                              # 1 -> @Page_id INT
                          i + 1 or 1,                                          # 2 -> @Article_id INT (✅ changed from string to int)
                          article.pdf_name or "",                           # 3 -> @Newspaper_name NVARCHAR(200)
-                         str(article.image) or "", # article.image or "" ,                          # 4 -> @Article_link NVARCHAR(500)
+                         str(article.image) or "" ,                        # 4 -> article.image or "" ,                          # 4 -> @Article_link NVARCHAR(500)
                          article.gujarati_text or "",                # 5 -> @Gujarati_Text NVARCHAR(MAX)
                          article.translated_text or "",         # 6 -> @English_Text NVARCHAR(MAX)
                          article.sentiment or "",               # 7 -> @Text_Sentiment NVARCHAR(100)
