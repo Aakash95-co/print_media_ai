@@ -20,6 +20,8 @@ from ocrapp.prabhag_utils.prabhag import PrabhagPredictor
 prabhag_predictor = PrabhagPredictor()
 from dotenv import load_dotenv
 from pathlib import Path
+import joblib
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 #load_dotenv(os.path.join(BASE_DIR, ".env"))
@@ -117,6 +119,9 @@ def analyze_sentiment(text):
     label = ["negative", "neutral", "positive"][np.argmax(agg)]
     return f"{label} : {agg[np.argmax(agg)] * 100:.2f}%"
 
+GOVT_CLS_PATH = settings.BASE_DIR / "ocrapp" / "utils" / "model" / "govt_news_classifier_best.pkl"
+GOVT_NEWS_MODEL = joblib.load(GOVT_CLS_PATH)
+
 # ---- Process PDF ----
 def process_pdf(pdf_path):
     doc = fitz.open(pdf_path)
@@ -186,26 +191,37 @@ def process_pdf(pdf_path):
                     continue
                 eng_text = translate_text(guj_text)
 
-                sentiment_gravity = 0.0 
+                # --- sentiment (unchanged) ---
+                sentiment_gravity = 0.0
                 sentiment_label = ""
-                sentiment_raw = analyze_sentiment(eng_text)  # e.g. "negative : 51.12%"
+                sentiment_raw = analyze_sentiment(eng_text)
                 try:
                     parts = sentiment_raw.split(":")
                     sentiment_label = parts[0].strip()
                     pct_str = parts[1].replace("%", "").strip()
                     sentiment_gravity = float(pct_str)
                 except Exception:
-                    sentiment_label = sentiment_label
                     sentiment_gravity = 0.0
+                sentiment = sentiment_label
+                # --- end sentiment ---
 
-                sentiment = sentiment_label  # keep only label for DB as before
+                # --- government classifier (model-based) ---
+                try:
+                    gov_pred = GOVT_NEWS_MODEL.predict([eng_text])[0]
+                    is_govt = bool(gov_pred == 1)
+                except Exception:
+                    is_govt = False
+                # keep compatibility; no keyword detected here
+                govt_word = ""
+                # --- end government classifier ---
 
-                # Print title and sentiment gravity (not stored)
+                # Print diagnostics (title & sentiment gravity)
                 if guj_title:
                     print(f"[Title] {guj_title}")
                 else:
                     print("[Title] (none)")
                 print(f"[Sentiment] label={sentiment_label} gravity={sentiment_gravity}")
+                print(f"[GovClassifier] is_govt={is_govt}")
 
                 dist = "Unknown"
                 dist_token = None
