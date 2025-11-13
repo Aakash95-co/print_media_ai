@@ -61,7 +61,8 @@ STOPWORDS = {
 }
 
 # ---- OCR helper ----
-def page_to_bgr(page, scale=4.0):
+custom_config = r"--oem 3 --psm 6 -l guj"
+def page_to_bgr(page, scale=2.0):  # match Streamlit scale
     mat = fitz.Matrix(scale, scale)
     pix = page.get_pixmap(matrix=mat)
     img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
@@ -70,9 +71,11 @@ def page_to_bgr(page, scale=4.0):
     return img
 
 def ocr_crop(crop):
-    gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
-    txt = pytesseract.image_to_string(gray, lang="guj").strip()
-    return txt.replace("\n", " ") if txt else ""
+    if crop is None or crop.size == 0:
+        return ""
+    # Keep color (no forced grayscale) to match Streamlit
+    txt = pytesseract.image_to_string(crop, config=custom_config)
+    return txt.strip()
 
 # ---- Translation ----
 def translate_text(text):
