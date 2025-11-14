@@ -142,7 +142,7 @@ def process_pdf(pdf_path):
                 guj_title = ""
                 title_parts = []
                 plain_parts = []
-
+                is_govt = False    
                 result = layout_preds[0]
                 rects = result.boxes.xyxy.cpu().numpy()
                 cls_ids = result.boxes.cls.cpu().numpy()
@@ -228,7 +228,7 @@ def process_pdf(pdf_path):
 
                 dist = "Unknown"
                 dist_token = None
-                is_govt, govt_word = GovtInfo.detect_govt_word(guj_text) 
+                is_govt_rule_based, govt_word = GovtInfo.detect_govt_word(guj_text) 
                 category, cat_word, cat_id  = GovtInfo.detect_category(guj_text)
                 district, taluka, dcode, tcode = GovtInfo.detect_district(guj_text)
                 prabhag_name, prabhag_ID, confidence = prabhag_predictor.predict(eng_text)

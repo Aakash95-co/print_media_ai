@@ -17,6 +17,7 @@ class ArticleInfo(models.Model):
     # phase - 2
     is_govt = models.BooleanField(default=False)
     govt_word = models.CharField(max_length=255, blank=True, null=True)
+    govt_word_rule_based = models.CharField(max_length=255, blank=True, null=True)
     category_word = models.CharField(max_length=100, blank=True) 
     distict_word =  models.CharField(max_length=100, blank=True, null=True)
     prabhag =  models.CharField(max_length=255, blank=True, null=True) 
