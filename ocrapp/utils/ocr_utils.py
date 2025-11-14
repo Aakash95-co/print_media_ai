@@ -260,6 +260,7 @@ def process_pdf(pdf_path):
 
                     is_govt = is_govt ,
                     govt_word = govt_word,
+                    govt_word_rule_based = is_govt_rule_based,
 
                     district = district,
                     dist_token=dist_token,
