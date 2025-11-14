@@ -587,3 +587,39 @@ class GovtInfo:
                     tal_id = GovtInfo.taluka_id_mapping.get(area)
                     return district, area, dis_id, tal_id
         return "Unknown", None, None, None
+
+
+    @staticmethod
+    def detect_district_whole_word(gujarati_text: str):
+        """
+        Detects district and taluka by whole word match, starting from the beginning of the input string.
+        Returns (district_name, taluka_name, district_id, taluka_id)
+        """
+        words = gujarati_text.strip().split()
+        if not words:
+            return "Unknown", None, None, None
+
+        # Only consider matches at the start of the string
+        first_word = words[0]
+
+        for district, talukas in GovtInfo.DISTRICT_MAP.items():
+            if district == first_word:
+                dis_id = next((k for k, v in GovtInfo.district_id_mapping.items() if v == district), None)
+                # Check if the next word matches a taluka
+                if len(words) > 1:
+                    second_word = words[1]
+                    for taluka in talukas:
+                        if taluka == second_word:
+                            tal_id = next((k for k, v in GovtInfo.taluka_id_mapping.items() if v == taluka), None)
+                            return district, taluka, dis_id, tal_id
+                # If only district matches, return district
+                return district, None, dis_id, None
+
+            # If first word matches a taluka in any district
+            for taluka in talukas:
+                if taluka == first_word:
+                    dis_id = next((k for k, v in GovtInfo.district_id_mapping.items() if v == district), None)
+                    tal_id = next((k for k, v in GovtInfo.taluka_id_mapping.items() if v == taluka), None)
+                    return district, taluka, dis_id, tal_id
+
+        return "Unknown", None, None, None
