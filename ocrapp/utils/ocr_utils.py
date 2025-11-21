@@ -21,6 +21,7 @@ prabhag_predictor = PrabhagPredictor()
 from dotenv import load_dotenv
 from pathlib import Path
 import joblib
+from PIL import Image, ImageOps, ImageFilter  # <-- added
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(os.path.join(BASE_DIR, ".env"))
@@ -62,6 +63,7 @@ STOPWORDS = {
 
 # ---- OCR helper ----
 custom_config = r"--oem 3 --psm 6 -l guj"
+title_config = r"--oem 3 --psm 7 -l guj"  # <-- added (title OCR)
 def page_to_bgr(page, scale=2.0):  # match Streamlit scale
     mat = fitz.Matrix(scale, scale)
     pix = page.get_pixmap(matrix=mat)
@@ -70,60 +72,100 @@ def page_to_bgr(page, scale=2.0):  # match Streamlit scale
         img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
     return img
 
-def ocr_crop(crop):
+def ocr_crop(crop, config=custom_config):  # <-- updated to match ref
     if crop is None or crop.size == 0:
         return ""
-    # Keep color (no forced grayscale) to match Streamlit
-    txt = pytesseract.image_to_string(crop, config=custom_config)
+    # Ensure PIL image
+    if isinstance(crop, np.ndarray):
+        img_rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
+        pil_img = Image.fromarray(img_rgb)
+    else:
+        pil_img = crop
+    # Auto-contrast + sharpen (as in ref)
+    pil_img = ImageOps.autocontrast(pil_img, cutoff=2)
+    pil_img = pil_img.filter(ImageFilter.SHARPEN)
+    pil_img = pil_img.filter(ImageFilter.EDGE_ENHANCE_MORE)
+    txt = pytesseract.image_to_string(pil_img, config=config)
     return txt.strip()
 
-# ---- Translation ----
-def translate_text(text):
-    payload = {
-        "pipelineTasks": [{
-            "taskType": "translation",
-            "config": {"language": {"sourceLanguage": "gu", "targetLanguage": "en"}}
-        }],
-        "inputData": {"input": [{"source": text}]},
-    }
-    try:
-        resp = requests.post(ASR_API_URL, json=payload, headers=ASR_API_HEADERS, timeout=60)
-        if resp.status_code == 200:
-            return resp.json().get("pipelineResponse", [{}])[0].get("output", [{}])[0].get("target", "")
-    except Exception:
-        pass
-    return ""
+# ===== Helpers for merging OCR blocks (from ref) =====
+def _area(b):
+    x1, y1, x2, y2 = b
+    return max(0, x2 - x1) * max(0, y2 - y1)
 
-# ---- Sentiment ----
-def preprocess_text(text):
-    text = text.lower()
-    text = re.sub(r'[^a-zA-Z\s]', '', text)
-    text = re.sub(r'\s+', ' ', text).strip()
-    return ' '.join([w for w in text.split() if w not in STOPWORDS])
+def _intersection_area(a, b):
+    ax1, ay1, ax2, ay2 = a
+    bx1, by1, bx2, by2 = b
+    x_left = max(ax1, bx1)
+    y_top = max(ay1, by1)
+    x_right = min(ax2, bx2)
+    y_bottom = min(ay2, by2)
+    if x_right < x_left or y_bottom < y_top:
+        return 0
+    return (x_right - x_left) * (y_bottom - y_top)
 
-def analyze_sentiment(text):
-    text = preprocess_text(text)
-    if not text:
-        return "neutral : 0.00%"
-    tokens = TOKENIZER(text, truncation=False, return_tensors="pt")["input_ids"][0]
-    chunks = [tokens[i:i + 512] for i in range(0, len(tokens), 512)]
-    agg = np.zeros(3)
-    for c in chunks:
-        c = torch.cat([
-            torch.tensor([TOKENIZER.cls_token_id]),
-            c[:510],
-            torch.tensor([TOKENIZER.sep_token_id])
-        ])
-        with torch.no_grad():
-            logits = SENT_MODEL(c.unsqueeze(0)).logits
-        probs = torch.softmax(logits, dim=1).numpy()[0]
-        agg += probs
-    agg /= len(chunks)
-    label = ["negative", "neutral", "positive"][np.argmax(agg)]
-    return f"{label} : {agg[np.argmax(agg)] * 100:.2f}%"
+def _is_duplicate(a, b, threshold=0.50):
+    inter = _intersection_area(a, b)
+    if inter == 0:
+        return False
+    small = min(_area(a), _area(b))
+    return (inter / small) > threshold
 
-GOVT_CLS_PATH = settings.BASE_DIR / "ocrapp" / "utils" / "model" / "govt_news_classifier_best.pkl"
-GOVT_NEWS_MODEL = joblib.load(GOVT_CLS_PATH)
+def _y_overlap(a, b, y_percent=0.25):
+    ax1, ay1, ax2, ay2 = a
+    bx1, by1, bx2, by2 = b
+    a_h = ay2 - ay1
+    b_h = by2 - by1
+    avg_h = (a_h + b_h) / 2
+    return abs(ay1 - by1) <= avg_h * y_percent
+
+def _merge_boxes(a, b):
+    ax1, ay1, ax2, ay2 = a
+    bx1, by1, bx2, by2 = b
+    return (min(ax1, bx1), min(ay1, by1), max(ax2, bx2), max(ay2, by2))
+
+def _normalize_blocks(blocks, article_height):
+    """
+    blocks: list of tuples (x, y, text, w, h)
+    returns: merged list sorted properly, same shape
+    """
+    if not blocks:
+        return []
+
+    items = []
+    for x, y, txt, w, h in blocks:
+        items.append([(x, y, x + w, y + h), txt])
+
+    # Sort by y then x
+    items = sorted(items, key=lambda z: (z[0][1], z[0][0]))
+    final_items = []
+
+    for bbox, txt in items:
+        # Rule 1: remove duplicates
+        dup = any(_is_duplicate(bbox, fb, threshold=0.50) for fb, _ in final_items)
+        if dup:
+            continue
+
+        # Rule 2: merge same line (y-overlap)
+        merged = False
+        for i, (fb, ftxt) in enumerate(final_items):
+            if _y_overlap(bbox, fb, y_percent=0.25):
+                newbox = _merge_boxes(bbox, fb)
+                if bbox[0] < fb[0]:
+                    final_items[i] = (newbox, txt + " " + ftxt)
+                else:
+                    final_items[i] = (newbox, ftxt + " " + txt)
+                merged = True
+                break
+
+        if not merged:
+            final_items.append((bbox, txt))
+
+    out = []
+    for (x1, y1, x2, y2), t in final_items:
+        out.append([x1, y1, t, x2 - x1, y2 - y1])
+    return out
+# ===== end helpers =====
 
 # ---- Process PDF ----
 def process_pdf(pdf_path):
@@ -163,32 +205,37 @@ def process_pdf(pdf_path):
                         continue
                     x1b, y1b, x2b, y2b = map(int, rect)
                     name_l = class_name(cls_id).lower()
+                    w = x2b - x1b
+                    h = y2b - y1b
 
-                    # Title detection
+                    # Title block: use title_config (psm 7)
                     if ("title" in name_l) or ("headline" in name_l):
                         sub_crop = crop[y1b:y2b, x1b:x2b]
-                        txt = ocr_crop(sub_crop)
+                        txt = ocr_crop(sub_crop, config=title_config)
                         if txt:
-                            title_parts.append((x1b, txt))
+                            title_parts.append((x1b, y1b, txt, w, h))
                         continue
 
-                    # Plain text detection
-                    if any(k in name_l for k in ["text", "paragraph", "body", "plain"]):
+                    # Plain/body text: use custom_config (psm 6)
+                    if any(k in name_l for k in ["plain text", "text", "body", "paragraph", "plain"]):
                         sub_crop = crop[y1b:y2b, x1b:x2b]
-                        txt = ocr_crop(sub_crop)
+                        txt = ocr_crop(sub_crop, config=custom_config)
                         if txt:
-                            plain_parts.append((x1b, txt))
+                            txt += '---'  # keep same marker as ref
+                            plain_parts.append((x1b, y1b, txt, w, h))
                         continue
 
-                    # Ignore all other classes
+                    # Ignore others
                     continue
 
-                # Concatenate by ascending x-axis
-                if title_parts:
-                    guj_title = " ".join([t for _, t in sorted(title_parts, key=lambda x: x[0])])
+                # ---- Merge and order like ref ----
+                article_height = y2 - y1
+                ordered_titles = _normalize_blocks(title_parts, article_height)
+                ordered_plain = _normalize_blocks(plain_parts, article_height)
 
-                guj_text = " ".join([t for _, t in sorted(plain_parts, key=lambda x: x[0])])
-                # --- End filtering ---
+                guj_title = " ".join([b[2] for b in ordered_titles])
+                guj_text = " ".join([b[2] for b in ordered_plain])
+                # --- End filtering/merging ---
 
                 if not guj_text.strip():
                     continue
