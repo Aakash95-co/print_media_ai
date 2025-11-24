@@ -297,7 +297,7 @@ def process_pdf(pdf_path):
                         sub_crop = crop[y1b:y2b, x1b:x2b]
                         txt = ocr_crop(sub_crop, config=custom_config)
                         if txt:
-                            txt += '---'
+                            txt += ' --- '
                             plain_parts.append((x1b, y1b, txt, w, h))
                         continue
 
