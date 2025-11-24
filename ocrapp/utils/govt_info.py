@@ -1,4 +1,5 @@
 # ocrapp/utils/govt_info.py
+from rapidfuzz import fuzz
 
 class GovtInfo:
     # ------------------------------------
@@ -680,3 +681,104 @@ class GovtInfo:
                     return district, taluka, dis_id, tal_id
 
         return "Unknown", None, None, None
+
+    # from rapidfuzz import fuzz
+    @staticmethod
+    def detect_district_rapidfuzz(full_text):
+        tokens = full_text.split()
+        best_overall = None
+
+        for district, talukas in DISTRICT_MAP.items():
+
+            best = None  # best match for this district
+
+            # ---------- EXACT MATCH ----------
+            for idx, token in enumerate(tokens):
+                for taluka_name in talukas:
+                    if token == taluka_name:
+
+                        district_id = next(
+                            (k for k, v in district_id_mapping.items() if v == district),
+                            None
+                        )
+                        taluka_id = next(
+                            (k for k, v in taluka_id_mapping.items() if v == taluka_name),
+                            None
+                        )
+
+                        info = {
+                            "district": district,
+                            "district_id": district_id,
+                            "taluka": taluka_name,
+                            "taluka_id": taluka_id,
+                            "type": "exact",
+                            "index": idx,
+                            "score": 100
+                        }
+
+                        if (best is None) or (idx < best["index"]):
+                            best = info
+
+            # ---------- RAPIDFUZZ MATCH ----------
+            if best is None:  # only if no exact match
+                for idx, token in enumerate(tokens):
+                    for taluka_name in talukas:
+
+                        score = fuzz.ratio(token, taluka_name)
+                        if score > 90:
+
+                            district_id = next(
+                                (k for k, v in district_id_mapping.items() if v == district),
+                                None
+                            )
+                            taluka_id = next(
+                                (k for k, v in taluka_id_mapping.items() if v == taluka_name),
+                                None
+                            )
+
+                            info = {
+                                "district": district,
+                                "district_id": district_id,
+                                "taluka": taluka_name,
+                                "taluka_id": taluka_id,
+                                "type": "rapidfuzz",
+                                "index": idx,
+                                "score": score
+                            }
+
+                            if best is None:
+                                best = info
+                            else:
+                                if score > best["score"]:
+                                    best = info
+                                elif score == best["score"] and idx < best["index"]:
+                                    best = info
+
+            # Select best across districts
+            if best:
+                if best_overall is None:
+                    best_overall = best
+                else:
+                    # exact > rapidfuzz
+                    if best["type"] == "exact" and best_overall["type"] != "exact":
+                        best_overall = best
+                    elif best["type"] == best_overall["type"]:
+                        # Same type → highest score → lowest index
+                        if (best["score"] > best_overall["score"]) or (
+                            best["score"] == best_overall["score"] and best["index"] < best_overall["index"]
+                        ):
+                            best_overall = best
+
+        # Nothing matched
+        if not best_overall:
+            return None, None, None, None, None
+
+        return (
+            best_overall["district"],
+            best_overall["taluka"],
+            best_overall["district_id"],
+            best_overall["taluka_id"],
+            best_overall["type"]
+        )
+
+
