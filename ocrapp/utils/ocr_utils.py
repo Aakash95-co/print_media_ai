@@ -359,7 +359,8 @@ def process_pdf(pdf_path):
                 is_govt_rule_based, govt_word = GovtInfo.detect_govt_word(guj_text) 
                 category, cat_word, cat_id  = GovtInfo.detect_category(guj_text)
                 # district, taluka, dcode, tcode = GovtInfo.detect_district(guj_text)
-                district, taluka, dcode, tcode, string_type = GovtInfo.detect_district_rapidfuzz(guj_title+guj_text) 
+                str_district = (guj_title + guj_text).replace("દ્વારા", "")
+                district, taluka, dcode, tcode, string_type = GovtInfo.detect_district_rapidfuzz(str_district) 
                 prabhag_name, prabhag_ID, confidence = prabhag_predictor.predict(eng_text)
                 print(f"{is_govt, govt_word, category, cat_word, district, taluka, cat_id, dcode, tcode, prabhag_name, prabhag_ID} --- model_pred: {model_pred} ")
                 # save crop image
