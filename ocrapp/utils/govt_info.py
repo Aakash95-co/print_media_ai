@@ -688,7 +688,7 @@ class GovtInfo:
         tokens = full_text.split()
         best_overall = None
 
-        for district, talukas in DISTRICT_MAP.items():
+        for district, talukas in GovtInfo.DISTRICT_MAP.items():
 
             best = None  # best match for this district
 
@@ -698,11 +698,11 @@ class GovtInfo:
                     if token == taluka_name:
 
                         district_id = next(
-                            (k for k, v in district_id_mapping.items() if v == district),
+                            (k for k, v in GovtInfo.district_id_mapping.items() if v == district),
                             None
                         )
                         taluka_id = next(
-                            (k for k, v in taluka_id_mapping.items() if v == taluka_name),
+                            (k for k, v in GovtInfo.taluka_id_mapping.items() if v == taluka_name),
                             None
                         )
 
@@ -728,11 +728,11 @@ class GovtInfo:
                         if score > 90:
 
                             district_id = next(
-                                (k for k, v in district_id_mapping.items() if v == district),
+                                (k for k, v in GovtInfo.district_id_mapping.items() if v == district),
                                 None
                             )
                             taluka_id = next(
-                                (k for k, v in taluka_id_mapping.items() if v == taluka_name),
+                                (k for k, v in GovtInfo.taluka_id_mapping.items() if v == taluka_name),
                                 None
                             )
 
