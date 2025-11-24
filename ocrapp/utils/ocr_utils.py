@@ -338,6 +338,8 @@ def process_pdf(pdf_path):
                     #is_govt = bool(gov_pred == 1)
                     model_pred, _ = predict_texts([eng_text], tfidf, svd, mlp, scaler, svm)
                     model_pred = int(model_pred[0])
+                    if model_pred == 1:
+                        is_govt = True
                 except Exception:
                     is_govt = False
                 # keep compatibility; no keyword detected here
@@ -367,63 +369,65 @@ def process_pdf(pdf_path):
                 os.makedirs(os.path.dirname(save_path), exist_ok=True)
                 cv2.imwrite(save_path, crop)
 
-                article = ArticleInfo.objects.create(
-
-                    pdf_name=os.path.basename(pdf_path),
-                    page_number=page_num + 1,
-                    article_id=f"Article_{i+1}",
-                    gujarati_title=guj_title,
-                    gujarati_text=guj_text,
-                    translated_text=eng_text,
-                    image=f"articles/{img_name}",
-
-                    sentiment=sentiment,
-                    sentiment_gravity=sentiment_gravity,
-
-                    article_type="Unknown",
-                    article_category= category,
-                    category_word = cat_word ,
-                    cat_Id = cat_id,
-
-                    is_govt = is_govt ,
-                    govt_word = govt_word,
-                    govt_word_rule_based = is_govt_rule_based,
-
-                    district = district,
-                    dist_token=dist_token,
-                    distict_word = taluka,
-                    Dcode = dcode,
-                    Tcode = tcode ,
+                if article_type_pred == "article" and model_pred == 1 and district is not None and sentiment_label in ["negative", "neutral"]:
                     
-                    prabhag = prabhag_name,
-                    prabhag_ID = prabhag_ID,
+                    article = ArticleInfo.objects.create(
 
-                )
-                print(article.image)
-                #insert_news_analysis_entry(article)
-                article_info_insert = (
-                         article.page_number or 1,                              # 1 -> @Page_id INT
-                         i + 1 or 1,                                          # 2 -> @Article_id INT (✅ changed from string to int)
-                         article.pdf_name or "",                           # 3 -> @Newspaper_name NVARCHAR(200)
-                         str(article.image) or "" ,                        # 4 -> article.image or "" ,                          # 4 -> @Article_link NVARCHAR(500)
-                         article.gujarati_text or "",                # 5 -> @Gujarati_Text NVARCHAR(MAX)
-                         article.translated_text or "",         # 6 -> @English_Text NVARCHAR(MAX)
-                         article.sentiment or "",               # 7 -> @Text_Sentiment NVARCHAR(100)
-                         article.is_govt or 0,                             # 8 -> @Is_govt BIT
-                         article.article_category or "",        #9 -> @Category NVARCHAR(200)
-                         article.prabhag or "",                       # 10 -> @Prabhag NVARCHAR(200)
-                         article.district or "",                # 11 -> @District NVARCHAR(200)
-                         article.Dcode or None,                                  # 12 -> @Dcode INT
-                         article.Tcode or "",            # 13 -> @Tcode VARCHAR(50)
-                         article.cat_Id or None,                                  # 14 -> @Cat_code INT
-                         article.article_type or "",             # 15 -> @Title NVARCHAR(500)
-                         0 ,                                     # 16 - prabhagID
-                )
+                        pdf_name=os.path.basename(pdf_path),
+                        page_number=page_num + 1,
+                        article_id=f"Article_{i+1}",
+                        gujarati_title=guj_title,
+                        gujarati_text=guj_text,
+                        translated_text=eng_text,
+                        image=f"articles/{img_name}",
 
-                # --------------------------------------------
-                # Push the data to SQL Server
-                # --------------------------------------------
-                insert_news_analysis_entry(article_info_insert)
+                        sentiment=sentiment,
+                        sentiment_gravity=sentiment_gravity,
+
+                        article_type="Unknown",
+                        article_category= category,
+                        category_word = cat_word ,
+                        cat_Id = cat_id,
+
+                        is_govt = is_govt ,
+                        govt_word = govt_word,
+                        govt_word_rule_based = is_govt_rule_based,
+
+                        district = district,
+                        dist_token=dist_token,
+                        distict_word = taluka,
+                        Dcode = dcode,
+                        Tcode = tcode ,
+                        
+                        prabhag = prabhag_name,
+                        prabhag_ID = prabhag_ID,
+
+                    )
+                    print(article.image)
+                    #insert_news_analysis_entry(article)
+                    article_info_insert = (
+                            article.page_number or 1,                              # 1 -> @Page_id INT
+                            i + 1 or 1,                                          # 2 -> @Article_id INT (✅ changed from string to int)
+                            article.pdf_name or "",                           # 3 -> @Newspaper_name NVARCHAR(200)
+                            str(article.image) or "" ,                        # 4 -> article.image or "" ,                          # 4 -> @Article_link NVARCHAR(500)
+                            article.gujarati_text or "",                # 5 -> @Gujarati_Text NVARCHAR(MAX)
+                            article.translated_text or "",         # 6 -> @English_Text NVARCHAR(MAX)
+                            article.sentiment or "",               # 7 -> @Text_Sentiment NVARCHAR(100)
+                            article.is_govt or 0,                             # 8 -> @Is_govt BIT
+                            article.article_category or "",        #9 -> @Category NVARCHAR(200)
+                            article.prabhag or "",                       # 10 -> @Prabhag NVARCHAR(200)
+                            article.district or "",                # 11 -> @District NVARCHAR(200)
+                            article.Dcode or None,                                  # 12 -> @Dcode INT
+                            article.Tcode or "",            # 13 -> @Tcode VARCHAR(50)
+                            article.cat_Id or None,                                  # 14 -> @Cat_code INT
+                            article.article_type or "",             # 15 -> @Title NVARCHAR(500)
+                            0 ,                                     # 16 - prabhagID
+                    )
+
+                    # --------------------------------------------
+                    # Push the data to SQL Server
+                    # --------------------------------------------
+                    insert_news_analysis_entry(article_info_insert)
             except Exception as e:
                 print("Error:", e)
     doc.close()
