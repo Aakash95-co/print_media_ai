@@ -22,6 +22,12 @@ from dotenv import load_dotenv
 from pathlib import Path
 import joblib
 from PIL import Image, ImageOps, ImageFilter  # Added for preprocessing
+from .govrt_model import load_models, predict_texts
+#tfidf, svd, mlp, scaler, svm = load_models("./models")
+from django.conf import settings
+
+MODEL_DIR_G = os.path.join(settings.BASE_DIR, "ocrapp", "utils", "model")
+tfidf, svd, mlp, scaler, svm = load_models(MODEL_DIR_G)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(os.path.join(BASE_DIR, ".env"))
@@ -320,9 +326,12 @@ def process_pdf(pdf_path):
                 # --- end sentiment ---
 
                 # --- government classifier (model-based) ---
+                model_pred = 3
                 try:
-                    gov_pred = GOVT_NEWS_MODEL.predict([eng_text])[0]
-                    is_govt = bool(gov_pred == 1)
+                    #gov_pred = GOVT_NEWS_MODEL.predict([eng_text])[0]
+                    #is_govt = bool(gov_pred == 1)
+                    model_pred, _ = predict_texts([eng_text], tfidf, svd, mlp, scaler, svm)
+                    model_pred = int(model_pred[0])
                 except Exception:
                     is_govt = False
                 # keep compatibility; no keyword detected here
@@ -344,7 +353,7 @@ def process_pdf(pdf_path):
                 # district, taluka, dcode, tcode = GovtInfo.detect_district(guj_text)
                 district, taluka, dcode, tcode, string_type = GovtInfo.detect_district_rapidfuzz(guj_title+guj_text) 
                 prabhag_name, prabhag_ID, confidence = prabhag_predictor.predict(eng_text)
-                print(f"{is_govt, govt_word, category, cat_word, district, taluka, cat_id, dcode, tcode, prabhag_name, prabhag_ID}")
+                print(f"{is_govt, govt_word, category, cat_word, district, taluka, cat_id, dcode, tcode, prabhag_name, prabhag_ID} --- model_pred: {model_pred} ")
                 # save crop image
                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
                 img_name = f"article_{page_num+1}_{i+1}_{ts}.png"
