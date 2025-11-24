@@ -610,7 +610,7 @@ class GovtInfo:
                 if word in gujarati_text:
                     cat_id = GovtInfo.govt_cat_id_mapping.get(category)
                     return category, word, cat_id 
-        return "Unknown", None
+        return "Unknown", None, None
 
 
 

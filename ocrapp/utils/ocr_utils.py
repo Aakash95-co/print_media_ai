@@ -35,6 +35,7 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 # ---- Load Models ----
 ARTICLE_MODEL = YOLO(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "A-1.pt")
 LAYOUT_MODEL = YOLOv10(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "h2.pt")
+CLASSIFIER_MODEL = YOLO(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "classifier.pt")
 
 # ---- Translation ----
 ASR_API_URL = "https://dhruva-api.bhashini.gov.in/services/inference/pipeline"
@@ -248,13 +249,18 @@ def process_pdf(pdf_path):
             try:
                 x1, y1, x2, y2 = map(int, b.xyxy[0].tolist())
                 crop = img[y1:y2, x1:x2]
+                cls_results = CLASSIFIER_MODEL.predict(crop, verbose=False)
+                cls_result = cls_results[0]
                 layout_preds = LAYOUT_MODEL.predict(crop, imgsz=1280, conf=0.2, verbose=False)
-
+                top1_index = cls_result.probs.top1
+                article_type_pred = cls_result.names[top1_index]
+                conf_score = cls_result.probs.top1conf.item()
+                print(f"conf score ----------- {conf_score} ----  {article_type_pred}")
                 # --- Only process Title and Plain Text with conf > 0.5 ---
                 guj_title = ""
                 title_parts = []
                 plain_parts = []
-                is_govt = False    
+                is_govt = False
                 result = layout_preds[0]
                 rects = result.boxes.xyxy.cpu().numpy()
                 cls_ids = result.boxes.cls.cpu().numpy()
