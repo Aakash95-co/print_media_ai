@@ -15,7 +15,7 @@ from datetime import datetime
 @api_view(['POST'])
 def ocr_upload_view(request):
     if request.method == 'POST':
-        file = request.FILES.get("pdf")
+        file = request.FILES.get("file")
         news_paper = request.data.get("news_paper", "")
         lang = request.data.get("lang", "gu")
         article_param = request.data.get("article", "false")
