@@ -17,7 +17,9 @@ def ocr_upload_view(request):
     if request.method == 'POST':
         file = request.FILES.get("pdf")
         news_paper = request.data.get("news_paper", "")
-        
+        lang = request.data.get("lang", "gu")
+        article_param = request.data.get("article", "false")
+        district_param = request.data.get("district", None)
         if not file:
             return Response({"error": "No PDF uploaded"}, status=status.HTTP_400_BAD_REQUEST)
         
