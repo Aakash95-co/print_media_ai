@@ -239,7 +239,7 @@ def _normalize_blocks(blocks, article_height):
     return out
 
 # ---- Process PDF ----
-def process_pdf(pdf_path):
+def process_pdf(pdf_path, news_paper=""):
     doc = fitz.open(pdf_path)
     for page_num in range(len(doc)):
         page = doc[page_num]
@@ -369,42 +369,40 @@ def process_pdf(pdf_path):
                 save_path = os.path.join(settings.MEDIA_ROOT, "articles", img_name)
                 os.makedirs(os.path.dirname(save_path), exist_ok=True)
                 cv2.imwrite(save_path, crop)
-
+                is_govt_push_nic = False
                 if article_type_pred == "article" and model_pred == 1 and district is not None and sentiment_label in ["negative", "neutral"]:
-                    
-                    article = ArticleInfo.objects.create(
+                    is_govt_push_nic = True
 
-                        pdf_name=os.path.basename(pdf_path),
-                        page_number=page_num + 1,
-                        article_id=f"Article_{i+1}",
-                        gujarati_title=guj_title,
-                        gujarati_text=guj_text,
-                        translated_text=eng_text,
-                        image=f"articles/{img_name}",
+                article = ArticleInfo.objects.create(
 
-                        sentiment=sentiment,
-                        sentiment_gravity=sentiment_gravity,
+                    pdf_name=news_paper, #os.path.basename(pdf_path),
+                    page_number=page_num + 1,
+                    article_id=f"Article_{i+1}",
+                    gujarati_title=guj_title,
+                    gujarati_text=guj_text,
+                    translated_text=eng_text,
+                    image=f"articles/{img_name}",
+                    sentiment=sentiment,
+                    sentiment_gravity=sentiment_gravity,
+                    article_type="Unknown",
+                    article_category= category,
+                    category_word = cat_word ,
+                    cat_Id = cat_id,
+                    is_govt = is_govt ,
+                    govt_word = govt_word,
+                    govt_word_rule_based = is_govt_rule_based,
+                    district = district,
+                    dist_token=dist_token,
+                    distict_word = taluka,
+                    Dcode = dcode,
+                    Tcode = tcode ,
+                    prabhag = prabhag_name,
+                    prabhag_ID = prabhag_ID,
+                    is_govt_push_nic = is_govt_push_nic,
 
-                        article_type="Unknown",
-                        article_category= category,
-                        category_word = cat_word ,
-                        cat_Id = cat_id,
-
-                        is_govt = is_govt ,
-                        govt_word = govt_word,
-                        govt_word_rule_based = is_govt_rule_based,
-
-                        district = district,
-                        dist_token=dist_token,
-                        distict_word = taluka,
-                        Dcode = dcode,
-                        Tcode = tcode ,
-                        
-                        prabhag = prabhag_name,
-                        prabhag_ID = prabhag_ID,
-
-                    )
-                    print(article.image)
+                )
+                print(article.image)
+                if is_govt_push_nic:
                     #insert_news_analysis_entry(article)
                     article_info_insert = (
                             article.page_number or 1,                              # 1 -> @Page_id INT

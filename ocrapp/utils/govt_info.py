@@ -1,4 +1,5 @@
 # ocrapp/utils/govt_info.py
+import re
 from rapidfuzz import fuzz
 
 class GovtInfo:
@@ -599,19 +600,25 @@ class GovtInfo:
     # ------------------------------------
     # 🧩 Detect Category
     # ------------------------------------
+    import re
+
     @staticmethod
     def detect_category(gujarati_text: str):
         """
         Returns (category_name, matched_word)
         Example → ("કિસાન/કૃષિ બાબત", "ખેડૂત")
         """
+        text = gujarati_text.strip()
+
         for category, keywords in GovtInfo.GOVT_CAT_KEYWORDS.items():
             for word in keywords:
-                if word in gujarati_text:
+                # Whole-word match using regex
+                pattern = rf"\b{re.escape(word)}\b"
+                if re.search(pattern, text):
                     cat_id = GovtInfo.govt_cat_id_mapping.get(category)
-                    return category, word, cat_id 
-        return "Unknown", None, None
+                    return category, word, cat_id
 
+        return "Unknown", None, None
 
 
     @staticmethod

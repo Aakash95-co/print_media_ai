@@ -26,6 +26,6 @@ class ArticleInfo(models.Model):
     Tcode = models.IntegerField(null=True)
     cat_Id = models.IntegerField(null=True)
     sentiment_gravity = models.FloatField(null=True)
-
+    is_govt_push_nic  = models.BooleanField(default=False)
     def __str__(self):
         return f"{self.pdf_name} - {self.article_id}"

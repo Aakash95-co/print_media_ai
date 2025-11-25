@@ -37,13 +37,17 @@ from django.views.decorators.csrf import csrf_exempt
 def ocr_upload_view(request):
     if request.method == 'POST':
         file = request.FILES.get("pdf")
+        news_paper = request.data.get("news_paper", "")  # <--- Get newspaper name
+        
         if not file:
             return Response({"error": "No PDF uploaded"}, status=status.HTTP_400_BAD_REQUEST)
+        
         tmp_path = f"/tmp/{file.name}"
         with open(tmp_path, "wb") as f:
             for chunk in file.chunks():
                 f.write(chunk)
-        process_pdf(tmp_path)
+        
+        process_pdf(tmp_path, news_paper)  # <--- Pass it here
         return Response({"message": "Processing complete"}, status=status.HTTP_200_OK)
     return Response({"error": "Method not allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
