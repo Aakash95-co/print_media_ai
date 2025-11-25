@@ -5,50 +5,51 @@ from .utils.ocr_utils import process_pdf
 from .models import ArticleInfo
 from .serializers import ArticleInfoSerializer
 from django.views.decorators.csrf import csrf_exempt
-#from django.views.decorators.csrf import csrf_exempt
-
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
-from .utils.ocr_utils import process_pdf
-from .models import ArticleInfo
-from .serializers import ArticleInfoSerializer
-import os
-import shutil
-
-
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-#from rest_framework.decorators import api_view, csrf_exempt
-from .utils.ocr_utils import process_pdf
-from .models import ArticleInfo
-from .serializers import ArticleInfoSerializer
-
 from rest_framework.decorators import api_view
-from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
+import os
+from datetime import datetime
 
 
-#@csrf_exempt
 @csrf_exempt
 @api_view(['POST'])
 def ocr_upload_view(request):
     if request.method == 'POST':
         file = request.FILES.get("pdf")
-        news_paper = request.data.get("news_paper", "")  # <--- Get newspaper name
+        news_paper = request.data.get("news_paper", "")
         
         if not file:
             return Response({"error": "No PDF uploaded"}, status=status.HTTP_400_BAD_REQUEST)
         
-        tmp_path = f"/tmp/{file.name}"
-        with open(tmp_path, "wb") as f:
+        # 1. Generate Filename: name + dd+mm+yy+min+sec+microsecond
+        now = datetime.now()
+        timestamp = now.strftime("%d%m%y%M%S%f")
+        
+        # Sanitize newspaper name
+        safe_name = "".join(c for c in news_paper if c.isalnum() or c in " _-").strip().replace(" ", "_")
+        if not safe_name:
+            safe_name = "doc"
+            
+        ext = os.path.splitext(file.name)[1]
+        new_filename = f"{safe_name}_{timestamp}{ext}"
+        
+        # 2. Save to MEDIA_ROOT/pdfs
+        save_dir = os.path.join(settings.MEDIA_ROOT, "pdfs")
+        os.makedirs(save_dir, exist_ok=True)
+        
+        full_path = os.path.join(save_dir, new_filename)
+        
+        with open(full_path, "wb") as f:
             for chunk in file.chunks():
                 f.write(chunk)
         
-        process_pdf(tmp_path, news_paper)  # <--- Pass it here
-        return Response({"message": "Processing complete"}, status=status.HTTP_200_OK)
+        # 3. Create relative link (e.g., "pdfs/newspaper_123456.pdf")
+        pdf_link = f"pdfs/{new_filename}"
+        
+        # 4. Process with new args
+        process_pdf(full_path, news_paper, pdf_link)
+        
+        return Response({"message": "Processing complete", "pdf_link": pdf_link}, status=status.HTTP_200_OK)
     return Response({"error": "Method not allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 

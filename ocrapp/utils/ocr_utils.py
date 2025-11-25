@@ -239,7 +239,7 @@ def _normalize_blocks(blocks, article_height):
     return out
 
 # ---- Process PDF ----
-def process_pdf(pdf_path, news_paper=""):
+def process_pdf(pdf_path, news_paper="", pdf_link=""):
     doc = fitz.open(pdf_path)
     for page_num in range(len(doc)):
         page = doc[page_num]
@@ -373,9 +373,12 @@ def process_pdf(pdf_path, news_paper=""):
                 if article_type_pred == "article" and model_pred == 1 and district is not None and sentiment_label in ["negative", "neutral"]:
                     is_govt_push_nic = True
 
-                article = ArticleInfo.objects.create(
+                # Use provided newspaper name, fallback to filename if empty
+                final_newspaper_name = news_paper if news_paper else os.path.basename(pdf_path)
 
-                    pdf_name=news_paper, #os.path.basename(pdf_path),
+                article = ArticleInfo.objects.create(
+                    pdf_name=final_newspaper_name,
+                    pdf_link=pdf_link,  # <--- Save the PDF link here
                     page_number=page_num + 1,
                     article_id=f"Article_{i+1}",
                     gujarati_title=guj_title,
