@@ -361,7 +361,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link=""):
                 # district, taluka, dcode, tcode = GovtInfo.detect_district(guj_text)
 
                 #### district strings #####
-                unwanted = ["%", "[", "|", "]", "દ્વારા"]
+                unwanted = ["%", "[", "|", "]", "દ્વારા", "જામનગર મોર્નિંગ"]
                 for u in unwanted:
                     guj_text = guj_text.replace(u, "")
 
@@ -369,7 +369,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link=""):
                 district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(str_district)
 
                 if district is None and guj_title:
-                    unwanted = ["%", "[", "|", "]", "દ્વારા"]
+                    unwanted = ["%", "[", "|", "]", "દ્વારા", "જામનગર મોર્નિંગ"]
                     for u in unwanted:
                         guj_title = guj_title.replace(u, "")
                     str_district = guj_title

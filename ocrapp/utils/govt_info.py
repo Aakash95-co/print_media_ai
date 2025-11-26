@@ -628,7 +628,7 @@ class GovtInfo:
                     cat_id = GovtInfo.govt_cat_id_mapping.get(category)
                     return category, word, cat_id
 
-        return "Unknown", None, None
+        return "Unknown", None, 0
 
 
     @staticmethod
