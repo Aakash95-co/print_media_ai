@@ -28,5 +28,7 @@ class ArticleInfo(models.Model):
     sentiment_gravity = models.FloatField(null=True)
     is_govt_push_nic  = models.BooleanField(default=False)
     pdf_link = models.CharField(max_length=500, blank=True, null=True)
+    remarks = models.TextField(blank=True, null=True)
+    
     def __str__(self):
         return f"{self.pdf_name} - {self.article_id}"

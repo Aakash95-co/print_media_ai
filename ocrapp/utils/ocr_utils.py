@@ -293,7 +293,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link=""):
                         continue
 
                     # Plain text detection
-                    if any(k in name_l for k in ["text", "paragraph", "body", "plain"]):
+                    if any(k in name_l for k in ["text", "paragraph", "body", "plain", "figure_caption"]):
                         sub_crop = crop[y1b:y2b, x1b:x2b]
                         txt = ocr_crop(sub_crop, config=custom_config)
                         if txt:
@@ -359,8 +359,23 @@ def process_pdf(pdf_path, news_paper="", pdf_link=""):
                 is_govt_rule_based, govt_word = GovtInfo.detect_govt_word(guj_text) 
                 category, cat_word, cat_id  = GovtInfo.detect_category(guj_text)
                 # district, taluka, dcode, tcode = GovtInfo.detect_district(guj_text)
-                str_district = (guj_title + guj_text).replace("દ્વારા", "")
-                district, taluka, dcode, tcode, string_type = GovtInfo.detect_district_rapidfuzz(str_district) 
+
+                #### district strings #####
+                unwanted = ["%", "[", "|", "]", "દ્વારા"]
+                for u in unwanted:
+                    guj_text = guj_text.replace(u, "")
+
+                str_district = guj_text
+                district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(str_district)
+
+                if district is None and guj_title:
+                    unwanted = ["%", "[", "|", "]", "દ્વારા"]
+                    for u in unwanted:
+                        guj_title = guj_title.replace(u, "")
+                    str_district = guj_title
+                    district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(str_district)
+                ### district strings ###
+
                 prabhag_name, prabhag_ID, confidence = prabhag_predictor.predict(eng_text)
                 print(f"{is_govt, govt_word, category, cat_word, district, taluka, cat_id, dcode, tcode, prabhag_name, prabhag_ID} --- model_pred: {model_pred} ")
                 # save crop image
@@ -375,6 +390,16 @@ def process_pdf(pdf_path, news_paper="", pdf_link=""):
 
                 # Use provided newspaper name, fallback to filename if empty
                 final_newspaper_name = news_paper if news_paper else os.path.basename(pdf_path)
+                # article_remarks = district + ', '+ taluka +', '+ str(dcode) + str(tcode) + string_type + str(match_index) + matched_token + f" model pred {model_pred}" +  f"article_type_pred : {article_type_pred} " 
+                article_remarks = (
+                        f"{district}, {taluka}, "
+                        f"{dcode}-{tcode}, "
+                        f"{string_type}, "
+                        f"match_index={match_index}, "
+                        f"matched_token={matched_token}, "
+                        f"model_pred={model_pred}, "
+                        f"article_type_pred={article_type_pred}"
+                    )
 
                 article = ArticleInfo.objects.create(
                     pdf_name=final_newspaper_name if final_newspaper_name else "NA",
@@ -402,6 +427,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link=""):
                     prabhag = prabhag_name,
                     prabhag_ID = prabhag_ID,
                     is_govt_push_nic = is_govt_push_nic,
+                    remarks = article_remarks,
 
                 )
                 print(article.image)
