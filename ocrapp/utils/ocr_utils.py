@@ -71,7 +71,8 @@ def page_to_bgr(page, scale=2.0):  # match Streamlit scale
         img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
     return img
 
-def ocr_crop(crop, config=custom_config):
+# Update: Added 'enhance' parameter to toggle filters
+def ocr_crop(crop, config=custom_config, enhance=True):
     if crop is None or crop.size == 0:
         return ""
     
@@ -83,10 +84,11 @@ def ocr_crop(crop, config=custom_config):
         pil_img = crop
 
     # -----------------------------
-    # 🔥 ADD THIS: Auto-contrast + sharpen (from ref)
-    pil_img = ImageOps.autocontrast(pil_img, cutoff=2)
-    pil_img = pil_img.filter(ImageFilter.SHARPEN)
-    pil_img = pil_img.filter(ImageFilter.EDGE_ENHANCE_MORE)
+    # 🔥 Conditional Preprocessing
+    if enhance:
+        pil_img = ImageOps.autocontrast(pil_img, cutoff=2)
+        pil_img = pil_img.filter(ImageFilter.SHARPEN)
+        pil_img = pil_img.filter(ImageFilter.EDGE_ENHANCE_MORE)
     # -----------------------------
 
     txt = pytesseract.image_to_string(pil_img, config=config)
@@ -239,16 +241,30 @@ def _normalize_blocks(blocks, article_height):
     return out
 
 # ---- Process PDF ----
-def process_pdf(pdf_path, news_paper="", pdf_link=""):
+def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=False, district=None):
+    
+    # ---------------------------------------------------------
+    # 🔧 GS SPECIFIC TWEAKS
+    # If newspaper is GS, use higher res (3.0) and disable edge enhancement
+    # ---------------------------------------------------------
+    is_gs = "GS" in (news_paper or "").upper()
+    render_scale = 3.0 if is_gs else 2.0
+    use_enhancement = False if is_gs else True
+    
+    if is_gs:
+        print(f"ℹ️ Detected GS: Using High-Res Mode (Scale {render_scale}) & No Filters")
+
     doc = fitz.open(pdf_path)
     for page_num in range(len(doc)):
         page = doc[page_num]
-        img = page_to_bgr(page)
+        img = page_to_bgr(page, scale=render_scale) # <--- Use dynamic scale
+        
         article_preds = ARTICLE_MODEL.predict(img, verbose=False)
         for i, b in enumerate(article_preds[0].boxes):
             try:
                 x1, y1, x2, y2 = map(int, b.xyxy[0].tolist())
                 crop = img[y1:y2, x1:x2]
+                
                 cls_results = CLASSIFIER_MODEL.predict(crop, verbose=False)
                 cls_result = cls_results[0]
                 layout_preds = LAYOUT_MODEL.predict(crop, imgsz=1280, conf=0.2, verbose=False)
@@ -287,7 +303,8 @@ def process_pdf(pdf_path, news_paper="", pdf_link=""):
                     # Title detection
                     if ("title" in name_l) or ("headline" in name_l):
                         sub_crop = crop[y1b:y2b, x1b:x2b]
-                        txt = ocr_crop(sub_crop, config=title_config)
+                        # Pass enhance flag
+                        txt = ocr_crop(sub_crop, config=title_config, enhance=use_enhancement)
                         if txt:
                             title_parts.append((x1b, y1b, txt, w, h))
                         continue
@@ -295,7 +312,8 @@ def process_pdf(pdf_path, news_paper="", pdf_link=""):
                     # Plain text detection
                     if any(k in name_l for k in ["text", "paragraph", "body", "plain", "figure_caption"]):
                         sub_crop = crop[y1b:y2b, x1b:x2b]
-                        txt = ocr_crop(sub_crop, config=custom_config)
+                        # Pass enhance flag
+                        txt = ocr_crop(sub_crop, config=custom_config, enhance=use_enhancement)
                         if txt:
                             txt += ' --- '
                             plain_parts.append((x1b, y1b, txt, w, h))
