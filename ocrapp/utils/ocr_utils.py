@@ -26,6 +26,12 @@ from .govrt_model import load_models, predict_texts
 #tfidf, svd, mlp, scaler, svm = load_models("./models")
 from django.conf import settings
 
+# --- Surya OCR Imports ---
+from surya.foundation import FoundationPredictor
+from surya.detection import DetectionPredictor
+from surya.recognition import RecognitionPredictor
+# -------------------------
+
 MODEL_DIR_G = os.path.join(settings.BASE_DIR, "ocrapp", "utils", "model")
 tfidf, svd, mlp, scaler, svm = load_models(MODEL_DIR_G)
 
@@ -36,6 +42,23 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 ARTICLE_MODEL = YOLO(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "A-1.pt")
 LAYOUT_MODEL = YOLOv10(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "h2.pt")
 CLASSIFIER_MODEL = YOLO(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "classifier.pt")
+
+# ---- Surya Models Initialization ----
+try:
+    print("⏳ Loading Surya Models...")
+    FOUNDATION_MODEL = FoundationPredictor()
+    DETECTION_MODEL = DetectionPredictor()
+    RECOGNITION_MODEL = RecognitionPredictor(FOUNDATION_MODEL)
+    print("✅ Surya Models Loaded.")
+except Exception as e:
+    print(f"⚠️ Surya Models failed to load: {e}")
+    FOUNDATION_MODEL = None
+    DETECTION_MODEL = None
+    RECOGNITION_MODEL = None
+
+# Set this to "surya" or "tesseract"
+OCR_ENGINE = "surya" 
+# ------------------------------
 
 # ---- Translation ----
 ASR_API_URL = "https://dhruva-api.bhashini.gov.in/services/inference/pipeline"
@@ -71,6 +94,33 @@ def page_to_bgr(page, scale=2.0):  # match Streamlit scale
         img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
     return img
 
+def run_surya_ocr(image_input):
+    """
+    Takes a PIL Image or file path and returns the extracted text string.
+    """
+    if RECOGNITION_MODEL is None or DETECTION_MODEL is None:
+        return ""
+
+    # Ensure input is a PIL Image
+    if isinstance(image_input, str):
+        image = Image.open(image_input).convert("RGB")
+    else:
+        image = image_input
+
+    try:
+        # Run Recognition
+        rec_results = RECOGNITION_MODEL(images=[image], det_predictor=DETECTION_MODEL)
+        
+        # Extract and Join Text
+        if rec_results and len(rec_results) > 0:
+            text_lines = [line.text for line in rec_results[0].text_lines]
+            full_text = " ".join(text_lines)
+            return full_text.strip()
+            
+    except Exception as e:
+        print(f"❌ OCR Error: {e}")
+    return ""
+
 # Update: Added 'enhance' parameter to toggle filters
 def ocr_crop(crop, config=custom_config, enhance=True):
     if crop is None or crop.size == 0:
@@ -91,7 +141,11 @@ def ocr_crop(crop, config=custom_config, enhance=True):
         pil_img = pil_img.filter(ImageFilter.EDGE_ENHANCE_MORE)
     # -----------------------------
 
-    txt = pytesseract.image_to_string(pil_img, config=config)
+    if OCR_ENGINE == "surya":
+        txt = run_surya_ocr(pil_img)
+    else:
+        txt = pytesseract.image_to_string(pil_img, config=config)
+        
     return txt.strip()
 
 # ---- Translation ----
@@ -241,7 +295,7 @@ def _normalize_blocks(blocks, article_height):
     return out
 
 # ---- Process PDF ----
-def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=False, district=None):
+def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=False, district=None, is_connect=False) :
     
     # ---------------------------------------------------------
     # 🔧 GS SPECIFIC TWEAKS

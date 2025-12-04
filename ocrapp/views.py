@@ -20,6 +20,7 @@ def ocr_upload_view(request):
         lang = request.data.get("lang", "gu")
         article_param = request.data.get("article", "false")
         district_param = request.data.get("district", None)
+        is_connect = request.data.get("district", False)
         if not file:
             return Response({"error": "No PDF uploaded"}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -49,7 +50,7 @@ def ocr_upload_view(request):
         pdf_link = f"pdfs/{new_filename}"
         
         # 4. Process with new args
-        process_pdf(full_path, news_paper, pdf_link)
+        process_pdf(full_path, news_paper, pdf_link, is_connect)
         
         return Response({"message": "Processing complete", "pdf_link": pdf_link}, status=status.HTTP_200_OK)
     return Response({"error": "Method not allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
