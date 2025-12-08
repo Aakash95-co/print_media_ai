@@ -235,61 +235,125 @@ def _merge_boxes(a, b):
     bx1, by1, bx2, by2 = b
     return (min(ax1, bx1), min(ay1, by1), max(ax2, bx2), max(ay2, by2))
 
+# def _normalize_blocks(blocks, article_height):
+#     """
+#     blocks = [(x, y, text, w, h)]
+#     Output merged blocks sorted properly.
+#     """
+#     if not blocks:
+#         return []
+
+#     # Convert to bbox + text format
+#     items = []
+#     for x, y, txt, w, h in blocks:
+#         items.append([(x, y, x + w, y + h), txt])
+
+#     # Sort by y then x
+#     items = sorted(items, key=lambda z: (z[0][1], z[0][0]))
+
+#     final_items = []
+
+#     for bbox, txt in items:
+#         skip = False
+
+#         # -------------------------------
+#         #   RULE 1: REMOVE DUPLICATES
+#         # -------------------------------
+#         for fb, _ in final_items:
+#             if _is_duplicate(bbox, fb, threshold=0.50):
+#                 skip = True
+#                 break
+
+#         if skip:
+#             continue
+
+#         # -------------------------------
+#         #   RULE 2: Y-LINE MERGE
+#         # -------------------------------
+#         merged = False
+#         for i, (fb, ftxt) in enumerate(final_items):
+#             if _y_overlap(bbox, fb, y_percent=0.25):
+#                 newbox = _merge_boxes(bbox, fb)
+
+#                 # merge text left→right
+#                 if bbox[0] < fb[0]:
+#                     final_items[i] = (newbox, txt + " " + ftxt)
+#                 else:
+#                     final_items[i] = (newbox, ftxt + " " + txt)
+
+#                 merged = True
+#                 break
+
+#         if not merged:
+#             final_items.append((bbox, txt))
+
+#     # Convert back to format (x, y, text, w, h)
+#     out = []
+#     for (x1, y1, x2, y2), t in final_items:
+#         out.append([x1, y1, t, x2 - x1, y2 - y1])
+
+#     return out
+
 def _normalize_blocks(blocks, article_height):
     """
-    blocks = [(x, y, text, w, h)]
-    Output merged blocks sorted properly.
+    1. Removes duplicates.
+    2. Calculates a dynamic Y-threshold (25% of average block height).
+    3. Sorts using Fuzzy Logic (Row-based, then Left-to-Right).
+    4. NO MERGING (Prevents the "Ghost Box" deletion bug).
     """
     if not blocks:
         return []
 
-    # Convert to bbox + text format
+    # 1. Convert to bbox + text format [x1, y1, x2, y2]
     items = []
     for x, y, txt, w, h in blocks:
         items.append([(x, y, x + w, y + h), txt])
 
-    # Sort by y then x
-    items = sorted(items, key=lambda z: (z[0][1], z[0][0]))
-
-    final_items = []
-
+    # 2. REMOVE DUPLICATES (Strictly contained boxes)
+    unique_items = []
     for bbox, txt in items:
-        skip = False
-
-        # -------------------------------
-        #   RULE 1: REMOVE DUPLICATES
-        # -------------------------------
-        for fb, _ in final_items:
-            if _is_duplicate(bbox, fb, threshold=0.50):
-                skip = True
+        is_dup = False
+        for existing_bbox, _ in unique_items:
+            # Note: Ensure _is_duplicate is available or paste the logic here
+            if _is_duplicate(bbox, existing_bbox, threshold=0.50):
+                is_dup = True
                 break
+        if not is_dup:
+            unique_items.append((bbox, txt))
+    
+    if not unique_items:
+        return []
 
-        if skip:
-            continue
+    # 3. CALCULATE DYNAMIC THRESHOLD (The 25% Rule)
+    # We find the average height of all blocks to determine what counts as "Same Row"
+    total_h = 0
+    for bbox, _ in unique_items:
+        h = bbox[3] - bbox[1] # y2 - y1
+        total_h += h
+    
+    avg_h = total_h / len(unique_items)
+    
+    # 25% of the average block height
+    y_tolerance = avg_h * 0.25 
 
-        # -------------------------------
-        #   RULE 2: Y-LINE MERGE
-        # -------------------------------
-        merged = False
-        for i, (fb, ftxt) in enumerate(final_items):
-            if _y_overlap(bbox, fb, y_percent=0.25):
-                newbox = _merge_boxes(bbox, fb)
+    # Safety: Ensure we don't divide by zero
+    if y_tolerance < 1: 
+        y_tolerance = 10 
 
-                # merge text left→right
-                if bbox[0] < fb[0]:
-                    final_items[i] = (newbox, txt + " " + ftxt)
-                else:
-                    final_items[i] = (newbox, ftxt + " " + txt)
+    # 4. FUZZY SORT
+    # We divide the Y coordinate by the tolerance.
+    # Example: If tolerance is 50px.
+    # y=300 -> 6
+    # y=320 -> 6 (Same Row) -> Then sort by X (Left to Right)
+    # y=360 -> 7 (Next Row)
+    unique_items = sorted(
+        unique_items, 
+        key=lambda z: (int(z[0][1] / y_tolerance), z[0][0])
+    )
 
-                merged = True
-                break
-
-        if not merged:
-            final_items.append((bbox, txt))
-
-    # Convert back to format (x, y, text, w, h)
+    # 5. Convert back to original format (x, y, text, w, h)
     out = []
-    for (x1, y1, x2, y2), t in final_items:
+    for (x1, y1, x2, y2), t in unique_items:
         out.append([x1, y1, t, x2 - x1, y2 - y1])
 
     return out
@@ -432,7 +496,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 category, cat_word, cat_id  = GovtInfo.detect_category(guj_text)
                 # district, taluka, dcode, tcode = GovtInfo.detect_district(guj_text)
 
-                #### district strings #####
+                ### district strings ####
                 unwanted = ["%", "[", "|", "]", "દ્વારા", "જામનગર મોર્નિંગ"]
                 for u in unwanted:
                     guj_text = guj_text.replace(u, "")
@@ -446,7 +510,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                         guj_title = guj_title.replace(u, "")
                     str_district = guj_title
                     district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(str_district)
-                ### district strings ###
+                #### district strings #####
 
                 prabhag_name, prabhag_ID, confidence = prabhag_predictor.predict(eng_text)
                 print(f"{is_govt, govt_word, category, cat_word, district, taluka, cat_id, dcode, tcode, prabhag_name, prabhag_ID} --- model_pred: {model_pred} ")
