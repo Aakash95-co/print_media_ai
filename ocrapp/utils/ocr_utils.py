@@ -42,6 +42,7 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 ARTICLE_MODEL = YOLO(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "A-1.pt")
 LAYOUT_MODEL = YOLOv10(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "h2.pt")
 CLASSIFIER_MODEL = YOLO(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "classifier.pt")
+DISTRICT_MODEL = YOLO(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "district_best.pt")
 
 # ---- Surya Models Initialization ----
 try:
@@ -235,65 +236,6 @@ def _merge_boxes(a, b):
     bx1, by1, bx2, by2 = b
     return (min(ax1, bx1), min(ay1, by1), max(ax2, bx2), max(ay2, by2))
 
-# def _normalize_blocks(blocks, article_height):
-#     """
-#     blocks = [(x, y, text, w, h)]
-#     Output merged blocks sorted properly.
-#     """
-#     if not blocks:
-#         return []
-
-#     # Convert to bbox + text format
-#     items = []
-#     for x, y, txt, w, h in blocks:
-#         items.append([(x, y, x + w, y + h), txt])
-
-#     # Sort by y then x
-#     items = sorted(items, key=lambda z: (z[0][1], z[0][0]))
-
-#     final_items = []
-
-#     for bbox, txt in items:
-#         skip = False
-
-#         # -------------------------------
-#         #   RULE 1: REMOVE DUPLICATES
-#         # -------------------------------
-#         for fb, _ in final_items:
-#             if _is_duplicate(bbox, fb, threshold=0.50):
-#                 skip = True
-#                 break
-
-#         if skip:
-#             continue
-
-#         # -------------------------------
-#         #   RULE 2: Y-LINE MERGE
-#         # -------------------------------
-#         merged = False
-#         for i, (fb, ftxt) in enumerate(final_items):
-#             if _y_overlap(bbox, fb, y_percent=0.25):
-#                 newbox = _merge_boxes(bbox, fb)
-
-#                 # merge text left→right
-#                 if bbox[0] < fb[0]:
-#                     final_items[i] = (newbox, txt + " " + ftxt)
-#                 else:
-#                     final_items[i] = (newbox, ftxt + " " + txt)
-
-#                 merged = True
-#                 break
-
-#         if not merged:
-#             final_items.append((bbox, txt))
-
-#     # Convert back to format (x, y, text, w, h)
-#     out = []
-#     for (x1, y1, x2, y2), t in final_items:
-#         out.append([x1, y1, t, x2 - x1, y2 - y1])
-
-#     return out
-
 def _normalize_blocks(blocks, article_height):
     """
     1. Removes duplicates.
@@ -366,11 +308,11 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
     # If newspaper is GS, use higher res (3.0) and disable edge enhancement
     # ---------------------------------------------------------
     is_gs = "GS" in (news_paper or "").upper()
-    render_scale = 3.0 if is_gs else 2.0
+    render_scale = 1 #3.0 if is_gs else 2.0
     use_enhancement = False if is_gs else True
     
-    if is_gs:
-        print(f"ℹ️ Detected GS: Using High-Res Mode (Scale {render_scale}) & No Filters")
+    # if is_gs:
+    #     print(f"ℹ️ Detected GS: Using High-Res Mode (Scale {render_scale}) & No Filters")
 
     doc = fitz.open(pdf_path)
     for page_num in range(len(doc)):
@@ -447,7 +389,13 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
 
                 guj_title = " ".join([b[2] for b in ordered_titles])
                 guj_text = " ".join([b[2] for b in ordered_plain])
-                # --- End filtering ---
+
+                # --- Clean Text: Remove emojis & garbage ---
+                # Keep: Alphanumeric (\w), Spaces (\s), and Punctuation (.,'"?!-)
+                # This removes emojis, |, [, ], {, }, etc.
+                # clean_pattern = r'[^\w\s.,\'"?!-]'
+                # guj_title = re.sub(clean_pattern, '', guj_title)
+                # guj_text = re.sub(clean_pattern, '', guj_text)
 
                 if not guj_text.strip():
                     continue
@@ -494,22 +442,62 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 dist_token = None
                 is_govt_rule_based, govt_word = GovtInfo.detect_govt_word(guj_text) 
                 category, cat_word, cat_id  = GovtInfo.detect_category(guj_text)
-                # district, taluka, dcode, tcode = GovtInfo.detect_district(guj_text)
 
                 ### district strings ####
                 unwanted = ["%", "[", "|", "]", "દ્વારા", "જામનગર મોર્નિંગ"]
-                for u in unwanted:
-                    guj_text = guj_text.replace(u, "")
+                
+                # Initialize district variables
+                district = None
+                taluka = None
+                dcode = None
+                tcode = None
+                string_type = "NA"
+                match_index = -1
+                matched_token = "NA"
 
-                str_district = guj_text
-                district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(str_district)
+                # 1. Try District Model (Visual Detection)
+                district_ocr_text = ""
+                try:
+                    dist_preds = DISTRICT_MODEL.predict(crop, verbose=False)
+                    if dist_preds and len(dist_preds[0].boxes) > 0:
+                        # Get the highest confidence box
+                        d_box = dist_preds[0].boxes[0]
+                        dx1, dy1, dx2, dy2 = map(int, d_box.xyxy[0].tolist())
+                        
+                        # Clip coordinates to crop dimensions
+                        h_c, w_c = crop.shape[:2]
+                        dx1, dy1 = max(0, dx1), max(0, dy1)
+                        dx2, dy2 = min(w_c, dx2), min(h_c, dy2)
+                        
+                        if dx2 > dx1 and dy2 > dy1:
+                            dist_crop = crop[dy1:dy2, dx1:dx2]
+                            # Run OCR on the specific district crop
+                            district_ocr_text = ocr_crop(dist_crop, config=title_config, enhance=use_enhancement)
+                except Exception as e:
+                    print(f"District Model Error: {e}")
 
-                if district is None and guj_title:
-                    unwanted = ["%", "[", "|", "]", "દ્વારા", "જામનગર મોર્નિંગ"]
+                # If model found text, try to match district
+                if district_ocr_text:
+                    clean_dist = district_ocr_text
                     for u in unwanted:
-                        guj_title = guj_title.replace(u, "")
-                    str_district = guj_title
-                    district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(str_district)
+                        clean_dist = clean_dist.replace(u, "")
+                    district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(clean_dist)
+                    if district:
+                        string_type = f"YOLO_Model_{string_type}"
+
+                # 2. Fallback to Full Text (Existing Logic)
+                if district is None:
+                    clean_text = guj_text
+                    for u in unwanted:
+                        clean_text = clean_text.replace(u, "")
+                    district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(clean_text)
+
+                # 3. Fallback to Title (Existing Logic)
+                if district is None and guj_title:
+                    clean_title = guj_title
+                    for u in unwanted:
+                        clean_title = clean_title.replace(u, "")
+                    district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(clean_title)
                 #### district strings #####
 
                 prabhag_name, prabhag_ID, confidence = prabhag_predictor.predict(eng_text)
@@ -521,7 +509,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 os.makedirs(os.path.dirname(save_path), exist_ok=True)
                 cv2.imwrite(save_path, crop)
                 is_govt_push_nic = False
-                if article_type_pred == "article" and model_pred == 1 and district is not None and sentiment_label in ["negative", "neutral"]:
+                if article_type_pred == "article" and model_pred == 1  and sentiment_label in ["negative", "neutral"]:  #and district is not None
                     is_govt_push_nic = True
 
                 # Use provided newspaper name, fallback to filename if empty
