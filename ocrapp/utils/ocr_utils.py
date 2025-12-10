@@ -308,7 +308,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
     # If newspaper is GS, use higher res (3.0) and disable edge enhancement
     # ---------------------------------------------------------
     is_gs = "GS" in (news_paper or "").upper()
-    render_scale = 1 #3.0 if is_gs else 2.0
+    render_scale = 2 #1 #3.0 if is_gs else 2.0
     use_enhancement = False if is_gs else True
     
     # if is_gs:
@@ -444,7 +444,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 category, cat_word, cat_id  = GovtInfo.detect_category(guj_text)
 
                 ### district strings ####
-                unwanted = ["%", "[", "|", "]", "દ્વારા", "જામનગર મોર્નિંગ"]
+                unwanted = ["%", "[", "|", "]", "દ્વારા", "જામનગર મોર્નિંગ", ',']
                 
                 # Initialize district variables
                 district = None
