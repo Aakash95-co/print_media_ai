@@ -56,9 +56,43 @@ def ocr_upload_view(request):
     return Response({"error": "Method not allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.utils.dateparse import parse_date
+
 class ArticleListView(APIView):
     def get(self, request):
         qs = ArticleInfo.objects.all().order_by("-created_at")
+
+        # Query Params
+        from_date = request.GET.get("from_date")   # yyyy-mm-dd
+        to_date = request.GET.get("to_date")       # yyyy-mm-dd
+        district = request.GET.get("district")
+        prabhag = request.GET.get("prabhag")
+        article_category = request.GET.get("article_category")
+        sentiment = request.GET.get("sentiment")
+
+        # Date Range Filter (using created_at)
+        if from_date:
+            qs = qs.filter(created_at__date__gte=parse_date(from_date))
+
+        if to_date:
+            qs = qs.filter(created_at__date__lte=parse_date(to_date))
+
+        # Other Filters
+        if district:
+            qs = qs.filter(district__iexact=district)
+
+        if prabhag:
+            qs = qs.filter(prabhag__iexact=prabhag)
+
+        if article_category:
+            qs = qs.filter(article_category__iexact=article_category)
+
+        if sentiment:
+            qs = qs.filter(sentiment__iexact=sentiment)
+
+        # Serialize
         serializer = ArticleInfoSerializer(qs, many=True)
         return Response(serializer.data)
 
