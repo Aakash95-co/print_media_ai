@@ -536,6 +536,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                         f"model_pred={model_pred}, "
                         f"article_type_pred={article_type_pred}"
                     )
+                is_manual = False
                 if is_article:
                     is_govt_push_nic = True
                     district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(article_district)
