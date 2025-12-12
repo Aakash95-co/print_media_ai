@@ -539,6 +539,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 if is_article:
                     is_govt_push_nic = True
                     district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(article_district)
+                    is_manual = True
 
                 article = ArticleInfo.objects.create(
                     pdf_name=final_newspaper_name if final_newspaper_name else "NA",
@@ -567,6 +568,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     prabhag_ID = prabhag_ID,
                     is_govt_push_nic = is_govt_push_nic,
                     remarks = article_remarks,
+                    is_manual = is_manual
 
                 )
                 print(article.image)

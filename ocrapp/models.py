@@ -30,6 +30,7 @@ class ArticleInfo(models.Model):
     pdf_link = models.CharField(max_length=500, blank=True, null=True)
     remarks = models.TextField(blank=True, null=True)
     is_connect_test = models.BooleanField(default=False)
+    is_manual = models.BooleanField(default=False)
     
     def __str__(self):
         return f"{self.pdf_name} - {self.article_id}"
