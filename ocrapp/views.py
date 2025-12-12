@@ -50,7 +50,10 @@ def ocr_upload_view(request):
         pdf_link = f"pdfs/{new_filename}"
         
         # 4. Process with new args
-        process_pdf(full_path, news_paper, pdf_link, is_connect)
+        is_article = False
+        if article_param == "article":
+            is_article = True
+        process_pdf(full_path, news_paper, pdf_link, is_article, is_connect, district_param)
         
         return Response({"message": "Processing complete", "pdf_link": pdf_link}, status=status.HTTP_200_OK)
     return Response({"error": "Method not allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)

@@ -301,7 +301,7 @@ def _normalize_blocks(blocks, article_height):
     return out
 
 # ---- Process PDF ----
-def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=False, district=None, is_connect=False) :
+def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=False, article_district=None, is_connect=False) :
     
     # ---------------------------------------------------------
     # 🔧 GS SPECIFIC TWEAKS
@@ -536,6 +536,9 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                         f"model_pred={model_pred}, "
                         f"article_type_pred={article_type_pred}"
                     )
+                if is_article:
+                    is_govt_push_nic = True
+                    district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(article_district)
 
                 article = ArticleInfo.objects.create(
                     pdf_name=final_newspaper_name if final_newspaper_name else "NA",
