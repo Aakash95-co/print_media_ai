@@ -319,10 +319,22 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
         page = doc[page_num]
         img = page_to_bgr(page, scale=render_scale) # <--- Use dynamic scale
         
-        article_preds = ARTICLE_MODEL.predict(img, verbose=False)
-        for i, b in enumerate(article_preds[0].boxes):
+        if is_article:
+            # If input is already an article (image), use the whole image as the crop
+            h, w = img.shape[:2]
+            boxes_iter = [(0, 0, w, h)]
+        else:
+            # Otherwise, detect articles in the page
+            article_preds = ARTICLE_MODEL.predict(img, verbose=False)
+            boxes_iter = article_preds[0].boxes
+
+        for i, b in enumerate(boxes_iter):
             try:
-                x1, y1, x2, y2 = map(int, b.xyxy[0].tolist())
+                if is_article:
+                    x1, y1, x2, y2 = b
+                else:
+                    x1, y1, x2, y2 = map(int, b.xyxy[0].tolist())
+
                 crop = img[y1:y2, x1:x2]
                 
                 cls_results = CLASSIFIER_MODEL.predict(crop, verbose=False)
@@ -574,6 +586,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                             article.cat_Id or None,                                  # 14 -> @Cat_code INT
                             article.article_type or "",             # 15 -> @Title NVARCHAR(500)
                             0 ,                                     # 16 - prabhagID
+                            article.id                              # 17 - AI_ID INT
                     )
 
                     # --------------------------------------------

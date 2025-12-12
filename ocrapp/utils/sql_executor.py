@@ -31,7 +31,8 @@ def insert_news_analysis_entry(article_info_insert):
                 @Tcode = ?,              -- 13
                 @Cat_code = ?,           -- 14
                 @Title = ?,              -- 15
-                @PrabhagId  = ?          -- 16
+                @PrabhagId  = ?,          -- 16
+                @AI_ID = ?                -- 17       
         """, article_info_insert)
 
         conn.commit()
