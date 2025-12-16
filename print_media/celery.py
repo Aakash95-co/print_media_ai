@@ -1,3 +1,13 @@
+# filepath: [celery.py](http://_vscodecontentref_/0)
+import multiprocessing
+
+# Ensure multiprocessing uses spawn (required for CUDA in worker processes)
+try:
+    multiprocessing.set_start_method("spawn")
+except RuntimeError:
+    # start method already set (safe to ignore)
+    pass
+
 import os
 from celery import Celery
 
