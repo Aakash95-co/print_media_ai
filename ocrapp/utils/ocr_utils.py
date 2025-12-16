@@ -43,8 +43,7 @@ from surya.detection import DetectionPredictor
 from surya.recognition import RecognitionPredictor
 # -------------------------
 
-# ---- Load Models (YOLO) ----
-# YOLO automatically picks CUDA if available, but being explicit helps
+# ---- Load Models ----
 ARTICLE_MODEL = YOLO(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "A-1.pt")
 ARTICLE_MODEL.to(DEVICE)
 
@@ -57,16 +56,40 @@ CLASSIFIER_MODEL.to(DEVICE)
 DISTRICT_MODEL = YOLO(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "district_best.pt")
 DISTRICT_MODEL.to(DEVICE)
 
+# ---- Sentiment ----
+SENT_MODEL_PATH = settings.BASE_DIR / "ocrapp" / "utils" / "SentimentAnalysis" / "local_model"
+TOKENIZER = AutoTokenizer.from_pretrained(SENT_MODEL_PATH)
+SENT_MODEL = AutoModelForSequenceClassification.from_pretrained(SENT_MODEL_PATH).to(DEVICE)
+
+# ---- Transformer Models ----
+try:
+    print("⏳ Loading Transformer Models...")
+    if os.path.exists(EMBEDDER_PATH) and os.path.exists(SVM_PATH):
+        EMBEDDER = SentenceTransformer(EMBEDDER_PATH, device=DEVICE)
+        CLASSIFIER_SVM = joblib.load(SVM_PATH)
+        print("✅ Transformer Models Loaded.")
+    else:
+        print(f"⚠️ Transformer models not found at {MODEL_DIR_TRANSFORMER}")
+        EMBEDDER = None
+        CLASSIFIER_SVM = None
+except Exception as e:
+    print(f"⚠️ Transformer Models failed to load: {e}")
+    EMBEDDER = None
+    CLASSIFIER_SVM = None
+
 # ---- Surya Models Initialization ----
 try:
     print("⏳ Loading Surya Models...")
-    # Surya automatically detects CUDA/MPS. 
-    # Ensure 'device' argument is passed if the library version supports it, 
-    # otherwise it defaults to torch.device
-    FOUNDATION_MODEL = FoundationPredictor(device=DEVICE) 
-    DETECTION_MODEL = DetectionPredictor(device=DEVICE)
-    RECOGNITION_MODEL = RecognitionPredictor(FOUNDATION_MODEL, device=DEVICE)
-    print("✅ Surya Models Loaded on GPU.")
+    FOUNDATION_MODEL = FoundationPredictor()  # Remove device if not supported
+    DETECTION_MODEL = DetectionPredictor()    # Remove device if not supported
+    RECOGNITION_MODEL = RecognitionPredictor(FOUNDATION_MODEL)  # Remove device argument entirely
+    
+    # If Surya supports moving to device after init, do it here (check docs or try)
+    # FOUNDATION_MODEL.to(DEVICE) if hasattr(FOUNDATION_MODEL, 'to') else None
+    # DETECTION_MODEL.to(DEVICE) if hasattr(DETECTION_MODEL, 'to') else None
+    # RECOGNITION_MODEL.to(DEVICE) if hasattr(RECOGNITION_MODEL, 'to') else None
+    
+    print("✅ Surya Models Loaded.")
 except Exception as e:
     print(f"⚠️ Surya Models failed to load: {e}")
     FOUNDATION_MODEL = None
