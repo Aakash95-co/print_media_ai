@@ -1,4 +1,9 @@
 import os
+# --- ADD THIS BLOCK AT THE VERY TOP ---
+# This forces the usage of the legacy Keras interface to fix the Keras 3 error
+os.environ["TF_USE_LEGACY_KERAS"] = "1"
+# --------------------------------------
+
 import fitz
 import cv2
 import numpy as np
@@ -22,9 +27,10 @@ from dotenv import load_dotenv
 from pathlib import Path
 import joblib
 from PIL import Image, ImageOps, ImageFilter  # Added for preprocessing
-from .govrt_model import load_models, predict_texts
-#tfidf, svd, mlp, scaler, svm = load_models("./models")
-from django.conf import settings
+
+# --- New Transformer Model Imports ---
+from sentence_transformers import SentenceTransformer
+# -------------------------------------
 
 # --- Surya OCR Imports ---
 from surya.foundation import FoundationPredictor
@@ -32,8 +38,26 @@ from surya.detection import DetectionPredictor
 from surya.recognition import RecognitionPredictor
 # -------------------------
 
-MODEL_DIR_G = os.path.join(settings.BASE_DIR, "ocrapp", "utils", "model")
-tfidf, svd, mlp, scaler, svm = load_models(MODEL_DIR_G)
+# ---- Load Transformer Models (Global) ----
+MODEL_DIR_TRANSFORMER = os.path.join(settings.BASE_DIR, "ocrapp", "utils", "models_transformer")
+EMBEDDER_PATH = os.path.join(MODEL_DIR_TRANSFORMER, "sentence_transformer_model")
+SVM_PATH = os.path.join(MODEL_DIR_TRANSFORMER, "svm_transformer.joblib")
+
+try:
+    print("⏳ Loading Transformer Models...")
+    if os.path.exists(EMBEDDER_PATH) and os.path.exists(SVM_PATH):
+        EMBEDDER = SentenceTransformer(EMBEDDER_PATH)
+        CLASSIFIER_SVM = joblib.load(SVM_PATH)
+        print("✅ Transformer Models Loaded.")
+    else:
+        print(f"⚠️ Transformer models not found at {MODEL_DIR_TRANSFORMER}")
+        EMBEDDER = None
+        CLASSIFIER_SVM = None
+except Exception as e:
+    print(f"⚠️ Transformer Models failed to load: {e}")
+    EMBEDDER = None
+    CLASSIFIER_SVM = None
+# ------------------------------------------
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(os.path.join(BASE_DIR, ".env"))
@@ -427,17 +451,31 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 sentiment = sentiment_label
                 # --- end sentiment ---
 
-                # --- government classifier (model-based) ---
-                model_pred = 3
+                # --- government classifier (Transformer-based) ---
+                model_pred = 0
+                is_govt = False
                 try:
-                    #gov_pred = GOVT_NEWS_MODEL.predict([eng_text])[0]
-                    #is_govt = bool(gov_pred == 1)
-                    model_pred, _ = predict_texts([eng_text], tfidf, svd, mlp, scaler, svm)
-                    model_pred = int(model_pred[0])
-                    if model_pred == 1:
-                        is_govt = True
-                except Exception:
+                    if EMBEDDER and CLASSIFIER_SVM and eng_text:
+                        # Split lines (same behavior as Dash app)
+                        lines = [line.strip() for line in eng_text.split("\n") if line.strip()]
+                        if not lines:
+                             lines = [eng_text.strip()]
+                        
+                        if lines:
+                            embeddings = EMBEDDER.encode(lines)
+                            preds = CLASSIFIER_SVM.predict(embeddings)
+                            
+                            # If any line is classified as Govt (1), mark article as Govt
+                            if 1 in preds:
+                                model_pred = 1
+                                is_govt = True
+                            else:
+                                model_pred = 0
+                                is_govt = False
+                except Exception as e:
+                    print(f"Govt Classification Error: {e}")
                     is_govt = False
+                
                 # keep compatibility; no keyword detected here
                 govt_word = ""
                 # --- end government classifier ---

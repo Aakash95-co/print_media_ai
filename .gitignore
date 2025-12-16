@@ -2,7 +2,7 @@
 
 media/
 ocrapp/utils/model/
-
+ocrapp/utils/models_transformer/
 ocrapp/utils/SentimentAnalysis/
 
 __pycache__/
@@ -10,3 +10,5 @@ __pycache__/
 ocrapp/utils/tmp_fol/
 
 ocrapp/prabhag_utils/
+
+

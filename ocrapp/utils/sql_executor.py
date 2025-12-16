@@ -1,11 +1,12 @@
 import pyodbc
 
 SQL_SERVER_CONN_STR = (
-    "DRIVER={ODBC Driver 17 for SQL Server};"
+    "DRIVER={ODBC Driver 18 for SQL Server};"
     "SERVER=172.17.28.179;"
     "DATABASE=AI_NewsAnalysis;"
     "UID=linq-usr;"
-    "PWD=linq@usr145"
+    "PWD=linq@usr145;"
+    "Encrypt=no;" 
 )
 
 def insert_news_analysis_entry(article_info_insert):

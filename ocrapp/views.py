@@ -16,10 +16,10 @@ from datetime import datetime
 def ocr_upload_view(request):
     if request.method == 'POST':
         file = request.FILES.get("file")
-        news_paper = request.data.get("news_paper", "")
+        news_paper = request.data.get("news_paper", "") # news_paper
         lang = request.data.get("lang", "gu")
-        article_param = request.data.get("article", "false")
-        district_param = request.data.get("district", None)
+        article_param = request.data.get("article_param", "false")
+        district_param = request.data.get("district_param", None)
         is_connect = request.data.get("district", False)
         if not file:
             return Response({"error": "No PDF uploaded"}, status=status.HTTP_400_BAD_REQUEST)
@@ -53,8 +53,18 @@ def ocr_upload_view(request):
         is_article = False
         if article_param == "article":
             is_article = True
-        process_pdf(full_path, news_paper, pdf_link, is_article, is_connect, district_param)
-        
+                    
+        print(f" --------------->>>>>>>>> article_param {article_param} is_article {is_article} ")
+        #process_pdf(full_path, news_paper, pdf_link, is_article, is_connect, district_param)
+        process_pdf(
+                    pdf_path=full_path,
+                    news_paper=news_paper,
+                    pdf_link=pdf_link,
+                    lang="gu",
+                    is_article=is_article,
+                    article_district=district_param,
+                    is_connect=is_connect
+                   )
         return Response({"message": "Processing complete", "pdf_link": pdf_link}, status=status.HTTP_200_OK)
     return Response({"error": "Method not allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
