@@ -61,6 +61,12 @@ SENT_MODEL_PATH = settings.BASE_DIR / "ocrapp" / "utils" / "SentimentAnalysis" /
 TOKENIZER = AutoTokenizer.from_pretrained(SENT_MODEL_PATH)
 SENT_MODEL = AutoModelForSequenceClassification.from_pretrained(SENT_MODEL_PATH).to(DEVICE)
 
+# ---- Define Transformer Paths (MISSING PART) ----
+MODEL_DIR_TRANSFORMER = os.path.join(settings.BASE_DIR, "ocrapp", "utils", "models_transformer")
+EMBEDDER_PATH = os.path.join(MODEL_DIR_TRANSFORMER, "sentence_transformer_model")
+SVM_PATH = os.path.join(MODEL_DIR_TRANSFORMER, "svm_transformer.joblib")
+# -------------------------------------------------
+
 # ---- Transformer Models ----
 try:
     print("⏳ Loading Transformer Models...")
