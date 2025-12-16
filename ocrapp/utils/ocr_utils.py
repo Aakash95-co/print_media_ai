@@ -155,7 +155,7 @@ def run_surya_ocr(image_input):
         image = image_input
     try:
         # Added langs=["gu"]
-        rec_results = RECOGNITION_MODEL(images=[image], det_predictor=DETECTION_MODEL, langs=["gu"])
+        rec_results = RECOGNITION_MODEL(images=[image], det_predictor=DETECTION_MODEL)
         if rec_results and len(rec_results) > 0:
             text_lines = [line.text for line in rec_results[0].text_lines]
             return " ".join(text_lines).strip()
@@ -294,7 +294,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
     # ... Just ensure you use the global variables (ARTICLE_MODEL, etc.) which are now loaded ...
     
     is_gs = "GS" in (news_paper or "").upper()
-    render_scale = 1.0 # Set to 1.0 as requested
+    render_scale = 2.0 # Set to 1.0 as requested
     use_enhancement = False if is_gs else True
     
     doc = fitz.open(pdf_path)
