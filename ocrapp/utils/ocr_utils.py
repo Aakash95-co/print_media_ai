@@ -9,6 +9,11 @@ import cv2
 import numpy as np
 import pytesseract
 import torch
+
+# Check for GPU
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"🚀 Running on device: {DEVICE}")
+
 import re
 import tempfile
 import time
@@ -38,43 +43,30 @@ from surya.detection import DetectionPredictor
 from surya.recognition import RecognitionPredictor
 # -------------------------
 
-# ---- Load Transformer Models (Global) ----
-MODEL_DIR_TRANSFORMER = os.path.join(settings.BASE_DIR, "ocrapp", "utils", "models_transformer")
-EMBEDDER_PATH = os.path.join(MODEL_DIR_TRANSFORMER, "sentence_transformer_model")
-SVM_PATH = os.path.join(MODEL_DIR_TRANSFORMER, "svm_transformer.joblib")
-
-try:
-    print("⏳ Loading Transformer Models...")
-    if os.path.exists(EMBEDDER_PATH) and os.path.exists(SVM_PATH):
-        EMBEDDER = SentenceTransformer(EMBEDDER_PATH)
-        CLASSIFIER_SVM = joblib.load(SVM_PATH)
-        print("✅ Transformer Models Loaded.")
-    else:
-        print(f"⚠️ Transformer models not found at {MODEL_DIR_TRANSFORMER}")
-        EMBEDDER = None
-        CLASSIFIER_SVM = None
-except Exception as e:
-    print(f"⚠️ Transformer Models failed to load: {e}")
-    EMBEDDER = None
-    CLASSIFIER_SVM = None
-# ------------------------------------------
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(os.path.join(BASE_DIR, ".env"))
-
-# ---- Load Models ----
+# ---- Load Models (YOLO) ----
+# YOLO automatically picks CUDA if available, but being explicit helps
 ARTICLE_MODEL = YOLO(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "A-1.pt")
+ARTICLE_MODEL.to(DEVICE)
+
 LAYOUT_MODEL = YOLOv10(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "h2.pt")
+LAYOUT_MODEL.to(DEVICE)
+
 CLASSIFIER_MODEL = YOLO(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "classifier.pt")
+CLASSIFIER_MODEL.to(DEVICE)
+
 DISTRICT_MODEL = YOLO(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "district_best.pt")
+DISTRICT_MODEL.to(DEVICE)
 
 # ---- Surya Models Initialization ----
 try:
     print("⏳ Loading Surya Models...")
-    FOUNDATION_MODEL = FoundationPredictor()
-    DETECTION_MODEL = DetectionPredictor()
-    RECOGNITION_MODEL = RecognitionPredictor(FOUNDATION_MODEL)
-    print("✅ Surya Models Loaded.")
+    # Surya automatically detects CUDA/MPS. 
+    # Ensure 'device' argument is passed if the library version supports it, 
+    # otherwise it defaults to torch.device
+    FOUNDATION_MODEL = FoundationPredictor(device=DEVICE) 
+    DETECTION_MODEL = DetectionPredictor(device=DEVICE)
+    RECOGNITION_MODEL = RecognitionPredictor(FOUNDATION_MODEL, device=DEVICE)
+    print("✅ Surya Models Loaded on GPU.")
 except Exception as e:
     print(f"⚠️ Surya Models failed to load: {e}")
     FOUNDATION_MODEL = None
@@ -95,7 +87,7 @@ ASR_API_HEADERS = {
 # ---- Sentiment ----
 SENT_MODEL_PATH = settings.BASE_DIR / "ocrapp"  / "utils" / "SentimentAnalysis" / "local_model"
 TOKENIZER = AutoTokenizer.from_pretrained(SENT_MODEL_PATH)
-SENT_MODEL = AutoModelForSequenceClassification.from_pretrained(SENT_MODEL_PATH)
+SENT_MODEL = AutoModelForSequenceClassification.from_pretrained(SENT_MODEL_PATH).to(DEVICE) # <--- Move to GPU
 
 STOPWORDS = {
     "a","an","the","and","or","but","if","while","of","at","by","for","with",
@@ -201,6 +193,7 @@ def analyze_sentiment(text):
     text = preprocess_text(text)
     if not text:
         return "neutral : 0.00%"
+    # Move inputs to GPU
     tokens = TOKENIZER(text, truncation=False, return_tensors="pt")["input_ids"][0]
     chunks = [tokens[i:i + 512] for i in range(0, len(tokens), 512)]
     agg = np.zeros(3)
@@ -209,10 +202,13 @@ def analyze_sentiment(text):
             torch.tensor([TOKENIZER.cls_token_id]),
             c[:510],
             torch.tensor([TOKENIZER.sep_token_id])
-        ])
+        ]).to(DEVICE) # <--- Move tensor to GPU
+        
         with torch.no_grad():
             logits = SENT_MODEL(c.unsqueeze(0)).logits
-        probs = torch.softmax(logits, dim=1).numpy()[0]
+        
+        # Move back to CPU for numpy conversion
+        probs = torch.softmax(logits, dim=1).cpu().numpy()[0] 
         agg += probs
     agg /= len(chunks)
     label = ["negative", "neutral", "positive"][np.argmax(agg)]

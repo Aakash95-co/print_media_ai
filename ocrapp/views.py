@@ -1,7 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .utils.ocr_utils import process_pdf
 from .models import ArticleInfo
 from .serializers import ArticleInfoSerializer
 from django.views.decorators.csrf import csrf_exempt
@@ -9,6 +8,7 @@ from rest_framework.decorators import api_view
 from django.conf import settings
 import os
 from datetime import datetime
+from .tasks import process_pdf_task  # <--- IMPORT THE TASK, NOT THE UTIL
 
 
 @csrf_exempt
@@ -49,23 +49,27 @@ def ocr_upload_view(request):
         # 3. Create relative link (e.g., "pdfs/newspaper_123456.pdf")
         pdf_link = f"pdfs/{new_filename}"
         
-        # 4. Process with new args
+        # 4. Process Asynchronously
         is_article = False
         if article_param == "article":
             is_article = True
                     
-        print(f" --------------->>>>>>>>> article_param {article_param} is_article {is_article} ")
-        #process_pdf(full_path, news_paper, pdf_link, is_article, is_connect, district_param)
-        process_pdf(
-                    pdf_path=full_path,
-                    news_paper=news_paper,
-                    pdf_link=pdf_link,
-                    lang="gu",
-                    is_article=is_article,
-                    article_district=district_param,
-                    is_connect=is_connect
-                   )
-        return Response({"message": "Processing complete", "pdf_link": pdf_link}, status=status.HTTP_200_OK)
+        print(f"Queuing task for: {new_filename}")
+        
+        # CALL THE TASK WITH .delay()
+        process_pdf_task.delay(
+            pdf_path=full_path,
+            news_paper=news_paper,
+            pdf_link=pdf_link,
+            lang="gu",
+            is_article=is_article,
+            article_district=district_param,
+            is_connect=is_connect
+        )
+        
+        # Return immediate response
+        return Response({"message": "File queued for processing", "pdf_link": pdf_link}, status=status.HTTP_200_OK)
+    
     return Response({"error": "Method not allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
