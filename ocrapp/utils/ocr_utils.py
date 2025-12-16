@@ -1,123 +1,131 @@
 import os
-# --- ADD THIS BLOCK AT THE VERY TOP ---
-# This forces the usage of the legacy Keras interface to fix the Keras 3 error
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
-# --------------------------------------
 
 import fitz
 import cv2
 import numpy as np
 import pytesseract
 import torch
+import re
+import tempfile
+import time
+import requests
+import joblib
+from datetime import datetime
+from pathlib import Path
+from dotenv import load_dotenv
+from PIL import Image, ImageOps, ImageFilter
+from django.conf import settings
+
+# --- Model Imports ---
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from ultralytics import YOLO
+from doclayout_yolo import YOLOv10
+from sentence_transformers import SentenceTransformer
+from surya.foundation import FoundationPredictor
+from surya.detection import DetectionPredictor
+from surya.recognition import RecognitionPredictor
+
+from ..models import ArticleInfo
+from .sql_executor import insert_news_analysis_entry
+from ocrapp.utils.govt_info import GovtInfo
+from ocrapp.prabhag_utils.prabhag import PrabhagPredictor
 
 # Check for GPU
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"🚀 Running on device: {DEVICE}")
 
-import re
-import tempfile
-import time
-import requests
-from datetime import datetime
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-from ultralytics import YOLO
-from doclayout_yolo import YOLOv10
-from django.conf import settings
-from ..models import ArticleInfo
-from .sql_executor import insert_news_analysis_entry
-from ocrapp.utils.govt_info import GovtInfo
-from ocrapp.prabhag_utils.prabhag import PrabhagPredictor
-prabhag_predictor = PrabhagPredictor()
-from dotenv import load_dotenv
-from pathlib import Path
-import joblib
-from PIL import Image, ImageOps, ImageFilter  # Added for preprocessing
+BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
-# --- New Transformer Model Imports ---
-from sentence_transformers import SentenceTransformer
-# -------------------------------------
+# ==============================================================================
+# 1. DEFINE GLOBAL VARIABLES (Initially None)
+# ==============================================================================
+ARTICLE_MODEL = None
+LAYOUT_MODEL = None
+CLASSIFIER_MODEL = None
+DISTRICT_MODEL = None
+SENT_MODEL = None
+TOKENIZER = None
+EMBEDDER = None
+CLASSIFIER_SVM = None
+FOUNDATION_MODEL = None
+DETECTION_MODEL = None
+RECOGNITION_MODEL = None
+GOVT_NEWS_MODEL = None
+PRABHAG_PREDICTOR = None
 
-# --- Surya OCR Imports ---
-from surya.foundation import FoundationPredictor
-from surya.detection import DetectionPredictor
-from surya.recognition import RecognitionPredictor
-# -------------------------
+# ==============================================================================
+# 2. LAZY LOADING FUNCTION (Called inside the worker process)
+# ==============================================================================
+def load_models_if_needed():
+    global ARTICLE_MODEL, LAYOUT_MODEL, CLASSIFIER_MODEL, DISTRICT_MODEL
+    global SENT_MODEL, TOKENIZER, EMBEDDER, CLASSIFIER_SVM
+    global FOUNDATION_MODEL, DETECTION_MODEL, RECOGNITION_MODEL
+    global GOVT_NEWS_MODEL, PRABHAG_PREDICTOR
 
-# ---- Load Models ----
-ARTICLE_MODEL = YOLO(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "A-1.pt")
-ARTICLE_MODEL.to(DEVICE)
+    if ARTICLE_MODEL is not None:
+        return  # Already loaded in this process
 
-LAYOUT_MODEL = YOLOv10(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "h2.pt")
-LAYOUT_MODEL.to(DEVICE)
+    print(f"⏳ [Worker {os.getpid()}] Loading Models into VRAM...")
 
-CLASSIFIER_MODEL = YOLO(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "classifier.pt")
-CLASSIFIER_MODEL.to(DEVICE)
+    # ---- YOLO Models ----
+    ARTICLE_MODEL = YOLO(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "A-1.pt")
+    ARTICLE_MODEL.to(DEVICE)
 
-DISTRICT_MODEL = YOLO(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "district_best.pt")
-DISTRICT_MODEL.to(DEVICE)
+    LAYOUT_MODEL = YOLOv10(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "h2.pt")
+    LAYOUT_MODEL.to(DEVICE)
 
-# ---- Sentiment ----
-SENT_MODEL_PATH = settings.BASE_DIR / "ocrapp" / "utils" / "SentimentAnalysis" / "local_model"
-TOKENIZER = AutoTokenizer.from_pretrained(SENT_MODEL_PATH)
-SENT_MODEL = AutoModelForSequenceClassification.from_pretrained(SENT_MODEL_PATH).to(DEVICE)
+    CLASSIFIER_MODEL = YOLO(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "classifier.pt")
+    CLASSIFIER_MODEL.to(DEVICE)
 
-# ---- Define Transformer Paths (MISSING PART) ----
-MODEL_DIR_TRANSFORMER = os.path.join(settings.BASE_DIR, "ocrapp", "utils", "models_transformer")
-EMBEDDER_PATH = os.path.join(MODEL_DIR_TRANSFORMER, "sentence_transformer_model")
-SVM_PATH = os.path.join(MODEL_DIR_TRANSFORMER, "svm_transformer.joblib")
-# -------------------------------------------------
+    DISTRICT_MODEL = YOLO(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "district_best.pt")
+    DISTRICT_MODEL.to(DEVICE)
 
-# ---- Transformer Models ----
-try:
-    print("⏳ Loading Transformer Models...")
-    if os.path.exists(EMBEDDER_PATH) and os.path.exists(SVM_PATH):
-        EMBEDDER = SentenceTransformer(EMBEDDER_PATH, device=DEVICE)
-        CLASSIFIER_SVM = joblib.load(SVM_PATH)
-        print("✅ Transformer Models Loaded.")
-    else:
-        print(f"⚠️ Transformer models not found at {MODEL_DIR_TRANSFORMER}")
-        EMBEDDER = None
-        CLASSIFIER_SVM = None
-except Exception as e:
-    print(f"⚠️ Transformer Models failed to load: {e}")
-    EMBEDDER = None
-    CLASSIFIER_SVM = None
+    # ---- Sentiment ----
+    SENT_MODEL_PATH = settings.BASE_DIR / "ocrapp" / "utils" / "SentimentAnalysis" / "local_model"
+    TOKENIZER = AutoTokenizer.from_pretrained(SENT_MODEL_PATH)
+    SENT_MODEL = AutoModelForSequenceClassification.from_pretrained(SENT_MODEL_PATH).to(DEVICE)
 
-# ---- Surya Models Initialization ----
-try:
-    print("⏳ Loading Surya Models...")
-    FOUNDATION_MODEL = FoundationPredictor()  # Remove device if not supported
-    DETECTION_MODEL = DetectionPredictor()    # Remove device if not supported
-    RECOGNITION_MODEL = RecognitionPredictor(FOUNDATION_MODEL)  # Remove device argument entirely
+    # ---- Transformer Models ----
+    MODEL_DIR_TRANSFORMER = os.path.join(settings.BASE_DIR, "ocrapp", "utils", "models_transformer")
+    EMBEDDER_PATH = os.path.join(MODEL_DIR_TRANSFORMER, "sentence_transformer_model")
+    SVM_PATH = os.path.join(MODEL_DIR_TRANSFORMER, "svm_transformer.joblib")
     
-    # If Surya supports moving to device after init, do it here (check docs or try)
-    # FOUNDATION_MODEL.to(DEVICE) if hasattr(FOUNDATION_MODEL, 'to') else None
-    # DETECTION_MODEL.to(DEVICE) if hasattr(DETECTION_MODEL, 'to') else None
-    # RECOGNITION_MODEL.to(DEVICE) if hasattr(RECOGNITION_MODEL, 'to') else None
+    try:
+        if os.path.exists(EMBEDDER_PATH) and os.path.exists(SVM_PATH):
+            EMBEDDER = SentenceTransformer(EMBEDDER_PATH, device=DEVICE)
+            CLASSIFIER_SVM = joblib.load(SVM_PATH)
+    except Exception as e:
+        print(f"⚠️ Transformer Load Error: {e}")
+
+    # ---- Surya Models ----
+    try:
+        FOUNDATION_MODEL = FoundationPredictor()
+        DETECTION_MODEL = DetectionPredictor()
+        RECOGNITION_MODEL = RecognitionPredictor(FOUNDATION_MODEL)
+    except Exception as e:
+        print(f"⚠️ Surya Load Error: {e}")
+
+    # ---- Misc Models ----
+    GOVT_CLS_PATH = settings.BASE_DIR / "ocrapp" / "utils" / "model" / "govt_news_classifier_best.pkl"
+    if os.path.exists(GOVT_CLS_PATH):
+        GOVT_NEWS_MODEL = joblib.load(GOVT_CLS_PATH)
     
-    print("✅ Surya Models Loaded.")
-except Exception as e:
-    print(f"⚠️ Surya Models failed to load: {e}")
-    FOUNDATION_MODEL = None
-    DETECTION_MODEL = None
-    RECOGNITION_MODEL = None
+    PRABHAG_PREDICTOR = PrabhagPredictor()
 
-# Set this to "surya" or "tesseract"
-OCR_ENGINE = "surya" 
-# ------------------------------
+    print(f"✅ [Worker {os.getpid()}] All Models Loaded Successfully.")
 
-# ---- Translation ----
+
+# ==============================================================================
+# 3. HELPER FUNCTIONS
+# ==============================================================================
+OCR_ENGINE = "surya"
 ASR_API_URL = "https://dhruva-api.bhashini.gov.in/services/inference/pipeline"
 ASR_API_HEADERS = {
     "Content-Type": "application/json",
     "Authorization": os.getenv("bhasini_KEY")
 }
-
-# ---- Sentiment ----
-SENT_MODEL_PATH = settings.BASE_DIR / "ocrapp"  / "utils" / "SentimentAnalysis" / "local_model"
-TOKENIZER = AutoTokenizer.from_pretrained(SENT_MODEL_PATH)
-SENT_MODEL = AutoModelForSequenceClassification.from_pretrained(SENT_MODEL_PATH).to(DEVICE) # <--- Move to GPU
-
 STOPWORDS = {
     "a","an","the","and","or","but","if","while","of","at","by","for","with",
     "about","against","between","into","through","during","before","after","to",
@@ -127,12 +135,10 @@ STOPWORDS = {
     "can","will","just","don","should","now","is","am","are","was","were",
     "be","been","being","do","does","did","doing","have","has","had","having"
 }
-
-# ---- OCR helper ----
 custom_config = r"--oem 3 --psm 6 -l guj"
-title_config = r"--oem 3 --psm 7 -l guj"  # Added title config
+title_config = r"--oem 3 --psm 7 -l guj"
 
-def page_to_bgr(page, scale=2.0):  # match Streamlit scale
+def page_to_bgr(page, scale=2.0):
     mat = fitz.Matrix(scale, scale)
     pix = page.get_pixmap(matrix=mat)
     img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
@@ -141,60 +147,41 @@ def page_to_bgr(page, scale=2.0):  # match Streamlit scale
     return img
 
 def run_surya_ocr(image_input):
-    """
-    Takes a PIL Image or file path and returns the extracted text string.
-    """
     if RECOGNITION_MODEL is None or DETECTION_MODEL is None:
         return ""
-
-    # Ensure input is a PIL Image
     if isinstance(image_input, str):
         image = Image.open(image_input).convert("RGB")
     else:
         image = image_input
-
     try:
-        # Run Recognition
-        rec_results = RECOGNITION_MODEL(images=[image], det_predictor=DETECTION_MODEL)
-        
-        # Extract and Join Text
+        # Added langs=["gu"]
+        rec_results = RECOGNITION_MODEL(images=[image], det_predictor=DETECTION_MODEL, langs=["gu"])
         if rec_results and len(rec_results) > 0:
             text_lines = [line.text for line in rec_results[0].text_lines]
-            full_text = " ".join(text_lines)
-            return full_text.strip()
-            
+            return " ".join(text_lines).strip()
     except Exception as e:
         print(f"❌ OCR Error: {e}")
     return ""
 
-# Update: Added 'enhance' parameter to toggle filters
 def ocr_crop(crop, config=custom_config, enhance=True):
-    if crop is None or crop.size == 0:
-        return ""
-    
-    # Convert BGR to PIL Image if needed
+    if crop is None or crop.size == 0: return ""
     if isinstance(crop, np.ndarray):
         img_rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
         pil_img = Image.fromarray(img_rgb)
     else:
         pil_img = crop
 
-    # -----------------------------
-    # 🔥 Conditional Preprocessing
     if enhance:
         pil_img = ImageOps.autocontrast(pil_img, cutoff=2)
         pil_img = pil_img.filter(ImageFilter.SHARPEN)
         pil_img = pil_img.filter(ImageFilter.EDGE_ENHANCE_MORE)
-    # -----------------------------
 
     if OCR_ENGINE == "surya":
         txt = run_surya_ocr(pil_img)
     else:
         txt = pytesseract.image_to_string(pil_img, config=config)
-        
     return txt.strip()
 
-# ---- Translation ----
 def translate_text(text):
     payload = {
         "pipelineTasks": [{
@@ -211,7 +198,6 @@ def translate_text(text):
         pass
     return ""
 
-# ---- Sentiment ----
 def preprocess_text(text):
     text = text.lower()
     text = re.sub(r'[^a-zA-Z\s]', '', text)
@@ -220,9 +206,8 @@ def preprocess_text(text):
 
 def analyze_sentiment(text):
     text = preprocess_text(text)
-    if not text:
-        return "neutral : 0.00%"
-    # Move inputs to GPU
+    if not text: return "neutral : 0.00%"
+    
     tokens = TOKENIZER(text, truncation=False, return_tensors="pt")["input_ids"][0]
     chunks = [tokens[i:i + 512] for i in range(0, len(tokens), 512)]
     agg = np.zeros(3)
@@ -231,25 +216,17 @@ def analyze_sentiment(text):
             torch.tensor([TOKENIZER.cls_token_id]),
             c[:510],
             torch.tensor([TOKENIZER.sep_token_id])
-        ]).to(DEVICE) # <--- Move tensor to GPU
+        ]).to(DEVICE)
         
         with torch.no_grad():
             logits = SENT_MODEL(c.unsqueeze(0)).logits
-        
-        # Move back to CPU for numpy conversion
         probs = torch.softmax(logits, dim=1).cpu().numpy()[0] 
         agg += probs
     agg /= len(chunks)
     label = ["negative", "neutral", "positive"][np.argmax(agg)]
     return f"{label} : {agg[np.argmax(agg)] * 100:.2f}%"
 
-GOVT_CLS_PATH = settings.BASE_DIR / "ocrapp" / "utils" / "model" / "govt_news_classifier_best.pkl"
-GOVT_NEWS_MODEL = joblib.load(GOVT_CLS_PATH)
-
-# ============================================================
-#   GEOMETRY HELPERS (full-area duplicate + Y-merge) - FROM REF
-# ============================================================
-
+# ... (Keep your _area, _intersection_area, _is_duplicate, _y_overlap, _merge_boxes, _normalize_blocks functions exactly as they are) ...
 def _area(b):
     x1, y1, x2, y2 = b
     return max(0, x2 - x1) * max(0, y2 - y1)
@@ -272,108 +249,63 @@ def _is_duplicate(a, b, threshold=0.50):
     small = min(_area(a), _area(b))
     return (inter / small) > threshold
 
-def _y_overlap(a, b, y_percent=0.25):
-    ax1, ay1, ax2, ay2 = a
-    bx1, by1, bx2, by2 = b
-    a_h = ay2 - ay1
-    b_h = by2 - by1
-    avg_h = (a_h + b_h) / 2
-    return abs(ay1 - by1) <= avg_h * y_percent
-
-def _merge_boxes(a, b):
-    ax1, ay1, ax2, ay2 = a
-    bx1, by1, bx2, by2 = b
-    return (min(ax1, bx1), min(ay1, by1), max(ax2, bx2), max(ay2, by2))
-
 def _normalize_blocks(blocks, article_height):
-    """
-    1. Removes duplicates.
-    2. Calculates a dynamic Y-threshold (25% of average block height).
-    3. Sorts using Fuzzy Logic (Row-based, then Left-to-Right).
-    4. NO MERGING (Prevents the "Ghost Box" deletion bug).
-    """
-    if not blocks:
-        return []
-
-    # 1. Convert to bbox + text format [x1, y1, x2, y2]
+    if not blocks: return []
     items = []
     for x, y, txt, w, h in blocks:
         items.append([(x, y, x + w, y + h), txt])
 
-    # 2. REMOVE DUPLICATES (Strictly contained boxes)
     unique_items = []
     for bbox, txt in items:
         is_dup = False
         for existing_bbox, _ in unique_items:
-            # Note: Ensure _is_duplicate is available or paste the logic here
             if _is_duplicate(bbox, existing_bbox, threshold=0.50):
                 is_dup = True
                 break
         if not is_dup:
             unique_items.append((bbox, txt))
     
-    if not unique_items:
-        return []
+    if not unique_items: return []
 
-    # 3. CALCULATE DYNAMIC THRESHOLD (The 25% Rule)
-    # We find the average height of all blocks to determine what counts as "Same Row"
     total_h = 0
     for bbox, _ in unique_items:
-        h = bbox[3] - bbox[1] # y2 - y1
+        h = bbox[3] - bbox[1]
         total_h += h
-    
     avg_h = total_h / len(unique_items)
-    
-    # 25% of the average block height
     y_tolerance = avg_h * 0.25 
+    if y_tolerance < 1: y_tolerance = 10 
 
-    # Safety: Ensure we don't divide by zero
-    if y_tolerance < 1: 
-        y_tolerance = 10 
+    unique_items = sorted(unique_items, key=lambda z: (int(z[0][1] / y_tolerance), z[0][0]))
 
-    # 4. FUZZY SORT
-    # We divide the Y coordinate by the tolerance.
-    # Example: If tolerance is 50px.
-    # y=300 -> 6
-    # y=320 -> 6 (Same Row) -> Then sort by X (Left to Right)
-    # y=360 -> 7 (Next Row)
-    unique_items = sorted(
-        unique_items, 
-        key=lambda z: (int(z[0][1] / y_tolerance), z[0][0])
-    )
-
-    # 5. Convert back to original format (x, y, text, w, h)
     out = []
     for (x1, y1, x2, y2), t in unique_items:
         out.append([x1, y1, t, x2 - x1, y2 - y1])
-
     return out
 
-# ---- Process PDF ----
+# ==============================================================================
+# 4. MAIN PROCESS FUNCTION
+# ==============================================================================
 def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=False, article_district=None, is_connect=False) :
     
-    # ---------------------------------------------------------
-    # 🔧 GS SPECIFIC TWEAKS
-    # If newspaper is GS, use higher res (3.0) and disable edge enhancement
-    # ---------------------------------------------------------
+    # 🔥 CRITICAL: Load models ONLY when the task starts
+    load_models_if_needed()
+
+    # ... (Rest of your process_pdf logic remains EXACTLY the same) ...
+    # ... Just ensure you use the global variables (ARTICLE_MODEL, etc.) which are now loaded ...
+    
     is_gs = "GS" in (news_paper or "").upper()
-    render_scale = 2 #1 #3.0 if is_gs else 2.0
+    render_scale = 1.0 # Set to 1.0 as requested
     use_enhancement = False if is_gs else True
     
-    # if is_gs:
-    #     print(f"ℹ️ Detected GS: Using High-Res Mode (Scale {render_scale}) & No Filters")
-
     doc = fitz.open(pdf_path)
     for page_num in range(len(doc)):
         page = doc[page_num]
-        img = page_to_bgr(page, scale=render_scale) # <--- Use dynamic scale
+        img = page_to_bgr(page, scale=render_scale)
         
         if is_article:
-            # If input is already an article (image), use the whole image as the crop
             h, w = img.shape[:2]
             boxes_iter = [(0, 0, w, h)]
         else:
-            # Otherwise, detect articles in the page
             article_preds = ARTICLE_MODEL.predict(img, verbose=False)
             boxes_iter = article_preds[0].boxes
 
@@ -391,8 +323,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 layout_preds = LAYOUT_MODEL.predict(crop, imgsz=1280, conf=0.2, verbose=False)
                 top1_index = cls_result.probs.top1
                 article_type_pred = cls_result.names[top1_index]
-                conf_score = cls_result.probs.top1conf.item()
-                print(f"conf score ----------- {conf_score} ----  {article_type_pred}")
+                
                 # --- Only process Title and Plain Text with conf > 0.5 ---
                 guj_title = ""
                 title_parts = []
@@ -575,7 +506,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(clean_title)
                 #### district strings #####
 
-                prabhag_name, prabhag_ID, confidence = prabhag_predictor.predict(eng_text)
+                prabhag_name, prabhag_ID, confidence = PRABHAG_PREDICTOR.predict(eng_text)
                 print(f"{is_govt, govt_word, category, cat_word, district, taluka, cat_id, dcode, tcode, prabhag_name, prabhag_ID} --- model_pred: {model_pred} ")
                 # save crop image
                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
