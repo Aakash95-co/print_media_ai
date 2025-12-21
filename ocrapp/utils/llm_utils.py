@@ -5,7 +5,7 @@ import json
 VLLM_URL = "http://localhost:8100/v1/chat/completions"
 MODEL_NAME = "./qwen-7b-awq"
 
-# --- Mappings ---
+# --- Gujarati -> English mapping ---
 GUJ_TO_ENG = {
     "યોજના બાબત": "Scheme related", "કુદરતી આફતની અસર": "Natural disaster impact",
     "સલામતી/ સુરક્ષા બાબત": "Safety/Security related", "કૃષિ બજાર/વેચાણ લગત": "Agricultural market/sales related",
@@ -40,49 +40,85 @@ GUJ_TO_ENG = {
     "વેરો વસૂલવા અંગે": "Tax collection related", "શહેરી ઇન્ફ્રાસ્ટ્રક્ચરને લગતા પ્રશ્ન": "Urban infrastructure issues",
 }
 
+# Derived helpers
 ENGLISH_CATEGORIES = list(GUJ_TO_ENG.values())
+ENG_TO_GUJ = {eng: guj for guj, eng in GUJ_TO_ENG.items()}
 
-def analyze_english_text_with_llm(text):
-    """
-    Analyzes English text to determine Govt Relevance and Category.
-    Returns: (category_string, is_govt_boolean)
-    """
-    if not text or not text.strip(): 
-        return "NA", False
-
-    cat_list = "\n".join(ENGLISH_CATEGORIES)
-    
-    prompt = (
-        f"You are a professional news editor for a government monitoring cell.\n"
-        f"Analyze this English news text.\n\n"
-        f"TEXT: '{text}'\n\n"
-        f"AVAILABLE CATEGORIES:\n{cat_list}\n\n"
-        f"TASKS:\n"
-        f"1. GOVERNMENT RELEVANCE: Decide if this is Government or Public Interest related (Yes or No).\n"
-        f"2. CATEGORY: Pick exactly one category from the list above.\n\n"
-        f"OUTPUT: Return strictly a JSON object with keys: 'is_govt', 'category'."
-    )
-
+def _call_vllm(prompt, json_mode=False):
     payload = {
         "model": MODEL_NAME,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0,
-        "max_tokens": 512,
-        "response_format": {"type": "json_object"}
+        "max_tokens": 256
     }
+    if json_mode:
+        payload["response_format"] = {"type": "json_object"}
 
     try:
-        response = requests.post(VLLM_URL, json=payload, timeout=30)
-        if response.status_code == 200:
-            res_json = response.json()
-            content = json.loads(res_json['choices'][0]['message']['content'])
-            
-            category = content.get('category', "NA")
-            is_govt_str = str(content.get('is_govt', 'No')).lower()
-            is_govt_bool = True if 'yes' in is_govt_str else False
-            
-            return category, is_govt_bool
+        resp = requests.post(VLLM_URL, json=payload, timeout=30)
+        if resp.status_code == 200:
+            return resp.json()['choices'][0]['message']['content']
     except Exception as e:
         print(f"⚠️ vLLM Error: {e}")
+    return None
+
+def analyze_english_text_with_llm(text):
+    """
+    Accepts English text.
+    Returns: (gujarati_category_string, is_govt_boolean)
+    """
+    if not text or not text.strip():
+        return "અન્ય", False
+
+    # --- 1. Check Government Relevance (JSON Mode) ---
+    prompt_govt = (
+        f"You are a professional news editor for a government monitoring cell. "
+        f"TEXT: '{text}'\n\n"
+        f"TASKS:\n"
+        f"GOVERNMENT RELEVANCE: Decide if this is Government or Public Interest related (Yes or No).\n"
+        f"   - MARK 'Yes' IF: Involves Govt Departments (Health/Hospitals, Education, Revenue, Police Admin, Municipal Corporations), "
+        f"Public Grievances (Electricity bills, solar panels, water supply, pension), Systemic issues (Pollution/AQI, infrastructure, traffic policy), "
+        f"Politicians, or Administrative Negligence/Scams.\n"
+        f"   - MARK 'No' IF: It is a routine crime where action is already taken (e.g., police caught a thief), "
+        f"private family disputes, or individual accidents with no govt negligence.\n\n"
+        f"OUTPUT: Return strictly a JSON object with keys: 'is_govt'."
+    )
     
-    return "NA", False
+    is_govt_bool = False
+    resp_govt = _call_vllm(prompt_govt, json_mode=True)
+    if resp_govt:
+        try:
+            data = json.loads(resp_govt)
+            is_govt_str = str(data.get("is_govt", "No")).lower()
+            is_govt_bool = True if "yes" in is_govt_str else False
+        except:
+            pass
+
+    # --- 2. Check Category (Strict Text Mode) ---
+    cat_list = "\n".join(ENGLISH_CATEGORIES)
+    prompt_cat = (
+        f"You are a strict text classifier. Classify the given English text into ONE category from the predefined English list.\n\n"
+        f"TEXT: '{text}'\n\n"
+        f"CATEGORY LIST:\n{cat_list}\n\n"
+        f"INSTRUCTIONS:\n"
+        f"- Read the text carefully\n"
+        f"- Choose EXACTLY ONE category that best matches the content\n"
+        f"- Respond with ONLY the category name (in English)\n"
+        f"- Do not add explanations or extra text\n"
+        f"- If none of the categories fit, respond OTHER as category name."
+    )
+
+    eng_category = "OTHER"
+    resp_cat = _call_vllm(prompt_cat, json_mode=False)
+    if resp_cat:
+        eng_category = resp_cat.strip()
+
+    # Map English category back to Gujarati (fallback to "અન્ય")
+    # We use fuzzy matching logic implicitly via dictionary lookup, 
+    # but since LLM is instructed to output exact string, direct lookup usually works.
+    # If LLM adds quotes or punctuation, we strip them.
+    clean_cat = eng_category.replace('"', '').replace("'", "").strip()
+    
+    guj_category = ENG_TO_GUJ.get(clean_cat, "અન્ય")
+    
+    return guj_category, is_govt_bool
