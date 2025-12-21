@@ -31,6 +31,7 @@ class ArticleInfo(models.Model):
     remarks = models.TextField(blank=True, null=True)
     is_connect_test = models.BooleanField(default=False)
     is_manual = models.BooleanField(default=False)
+    is_govt_llm = models.BooleanField(default=False)
     
     def __str__(self):
         return f"{self.pdf_name} - {self.article_id}"

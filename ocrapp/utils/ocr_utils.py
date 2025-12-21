@@ -31,6 +31,7 @@ from ..models import ArticleInfo
 from .sql_executor import insert_news_analysis_entry
 from ocrapp.utils.govt_info import GovtInfo
 from ocrapp.prabhag_utils.prabhag import PrabhagPredictor
+from .llm_utils import analyze_english_text_with_llm  # <--- IMPORT THIS
 
 # Check for GPU
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -399,6 +400,11 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 gujarati_only = re.sub(r'\s+', ' ', gujarati_only).strip()
                 eng_text = translate_text(gujarati_only)
 
+                # --- LLM OBSERVATION START ---
+                cate_llm, is_govt_llm = analyze_english_text_with_llm(eng_text)
+                print(f"🔍 LLM Observation -> Category: {cate_llm}, Is_Govt: {is_govt_llm}")
+                # --- LLM OBSERVATION END ---
+
                 # --- sentiment (unchanged) ---
                 sentiment_gravity = 0.0
                 sentiment_label = ""
@@ -554,7 +560,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     sentiment=sentiment if sentiment else "NA",
                     sentiment_gravity=sentiment_gravity,
                     article_type="Unknown",
-                    article_category=  category if category else "NA" ,
+                    article_category=  cate_llm if cate_llm else "NA" ,
                     category_word = cat_word if cat_word else "NA",
                     cat_Id = cat_id,
                     is_govt = is_govt ,
@@ -569,7 +575,8 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     prabhag_ID = prabhag_ID,
                     is_govt_push_nic = is_govt_push_nic,
                     remarks = article_remarks,
-                    is_manual = is_manual
+                    is_manual = is_manual,
+                    is_govt_llm = is_govt_llm,
 
                 )
                 print(article.image)

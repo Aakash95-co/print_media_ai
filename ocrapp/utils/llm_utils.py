@@ -1,0 +1,88 @@
+import requests
+import json
+
+# --- Configuration ---
+VLLM_URL = "http://localhost:8100/v1/chat/completions"
+MODEL_NAME = "./qwen-7b-awq"
+
+# --- Mappings ---
+GUJ_TO_ENG = {
+    "યોજના બાબત": "Scheme related", "કુદરતી આફતની અસર": "Natural disaster impact",
+    "સલામતી/ સુરક્ષા બાબત": "Safety/Security related", "કૃષિ બજાર/વેચાણ લગત": "Agricultural market/sales related",
+    "કૃષિ યુનિવર્સિટી": "Agriculture university", "જાહેર વિરોધ": "Public protest",
+    "સરકારી ઓફિસ બાબતે અસંતોષ": "Dissatisfaction with government offices", "વહીવટી તંત્ર": "Administrative system",
+    "વર્ગખંડ બાંધકામ બાબત": "Classroom construction related", "ખાતર/યુરીયા લગત": "Fertilizer/urea related",
+    "કામની ગુણવત્તા બાબતે": "Work quality issues", "આર. ટી. ઓ. લગત": "RTO related",
+    "અનિયમિતતા લગત": "Irregularities related", "પશુ/પશુ આરોગ્ય લગત": "Animal/animal health related",
+    "ચૂંટણી": "Elections", "સ્વચ્છતા લગત": "Sanitation related",
+    "કુપોષણ લગત": "Malnutrition related", "બાળમજૂરી": "Child labor",
+    "ડૉક્ટર/સ્ટાફની અછત અથવા દવા/સાધનોની અછત, મર્યાદિત ઓપીડી": "Shortage of doctors/staff or medicines/equipment, limited OPD",
+    "પેન્ડેમિક / રોગચાળા લગત": "Pandemic/epidemic related", "એમરજન્સી સેવાઓ": "Emergency services",
+    "પર્યાવરણ લગત": "Environment related", "જંગલ કટિંગ લગત": "Forest cutting related",
+    "વન્ય પ્રાણી/પક્ષીઓ લગત": "Wild animals/birds related", "ફોરેસ્ટ પરમીશન": "Forest permission",
+    "અનાજના વિતરણ/ રેશન દુકાન લગત": "Food grain distribution/ration shop related", "તકનિકી સમસ્યાઓ": "Technical issues",
+    "બેંક લગત": "Bank related", "ગુના અને કાયદા અમલીકરણ લગત": "Crime and law enforcement related",
+    "ટ્રાફિક અને માર્ગ સુરક્ષા બાબતે": "Traffic and road safety related", "દબાણ લગત પ્રશ્નો": "Pressure-related issues",
+    "વિજ ચોરી લગત": "Electricity theft related", "અકસ્માત / અકસ્માતનુ જોખમ": "Accident/accident risk",
+    "ભ્રષ્ટાચાર": "Corruption", "ગેરકાયદેસર ખનન": "Illegal mining",
+    "કર્મચારીઓ અંગે": "Employees related", "નીતિ અમલીકરણ લગત": "Policy implementation related",
+    "બેરોજગારી/આર્થિક સમસ્યા": "Unemployment/economic issues", "પ્રદૂષણ": "Pollution",
+    "સ્ટ્રીટ લાઈટને લગત": "Street light related", "ફૂડ/વોટર સેફ્ટી બાબતે": "Food/water safety related",
+    "રોડ-રસ્તા લગત": "Roads/streets related", "પુલ/બ્રિજ બાબત": "Bridge related",
+    "ઇન્ફ્રાસ્ટ્રક્ચર બાબત": "Infrastructure related", "ગેરકાયદેસર કામગીરી": "Illegal activities",
+    "કૃષિ સંસાધન લગત": "Agricultural resources related", "બાગાયતી": "Horticulture",
+    "અન્ય-વૃક્ષ": "Other - tree", "આરોગ્ય લગત": "Health related",
+    "ઇન્ફ્રાસ્ટ્રક્ચર સુવિધા બાબત": "Infrastructure facilities related", "ઓફિસ વ્યવસ્થા લગત": "Office administration related",
+    "ગટર/સ્ટ્રોમ વોટર ડ્રેઇન સુવિધા લગતી ફરિયાદ": "Sewer/storm water drainage facility complaint",
+    "ગેસની પાઈપ લાઈનના મરામત અંગેના પ્રશ્નો": "Gas pipeline repair issues", "ટ્રાન્સપોર્ટ સુવિધાને લગત પ્રશ્નો": "Transport facility issues",
+    "પાણી ભરાવવાના પ્રશ્ન": "Waterlogging issues", "પાણીને લગતા પ્રશ્ન (પાણીની અછત, ગંદુ પાણી, વગેરે)": "Water-related issues (shortage, dirty water, etc.)",
+    "મજૂરોના શોષણ બાબત ફરિયાદ": "Complaints about labor exploitation", "મહેકમ બાબત": "Department related",
+    "વેરો વસૂલવા અંગે": "Tax collection related", "શહેરી ઇન્ફ્રાસ્ટ્રક્ચરને લગતા પ્રશ્ન": "Urban infrastructure issues",
+}
+
+ENGLISH_CATEGORIES = list(GUJ_TO_ENG.values())
+
+def analyze_english_text_with_llm(text):
+    """
+    Analyzes English text to determine Govt Relevance and Category.
+    Returns: (category_string, is_govt_boolean)
+    """
+    if not text or not text.strip(): 
+        return "NA", False
+
+    cat_list = "\n".join(ENGLISH_CATEGORIES)
+    
+    prompt = (
+        f"You are a professional news editor for a government monitoring cell.\n"
+        f"Analyze this English news text.\n\n"
+        f"TEXT: '{text}'\n\n"
+        f"AVAILABLE CATEGORIES:\n{cat_list}\n\n"
+        f"TASKS:\n"
+        f"1. GOVERNMENT RELEVANCE: Decide if this is Government or Public Interest related (Yes or No).\n"
+        f"2. CATEGORY: Pick exactly one category from the list above.\n\n"
+        f"OUTPUT: Return strictly a JSON object with keys: 'is_govt', 'category'."
+    )
+
+    payload = {
+        "model": MODEL_NAME,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0,
+        "max_tokens": 512,
+        "response_format": {"type": "json_object"}
+    }
+
+    try:
+        response = requests.post(VLLM_URL, json=payload, timeout=30)
+        if response.status_code == 200:
+            res_json = response.json()
+            content = json.loads(res_json['choices'][0]['message']['content'])
+            
+            category = content.get('category', "NA")
+            is_govt_str = str(content.get('is_govt', 'No')).lower()
+            is_govt_bool = True if 'yes' in is_govt_str else False
+            
+            return category, is_govt_bool
+    except Exception as e:
+        print(f"⚠️ vLLM Error: {e}")
+    
+    return "NA", False
