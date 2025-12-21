@@ -12,3 +12,8 @@ ocrapp/utils/tmp_fol/
 ocrapp/prabhag_utils/
 
 
+logs/
+nano
+start_max_power.sh
+stop_system.sh
+

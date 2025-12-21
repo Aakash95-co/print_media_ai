@@ -1,4 +1,5 @@
 import os
+from pydoc import text
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
 
 import fitz
@@ -391,7 +392,12 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
 
                 if not guj_text.strip():
                     continue
-                eng_text = translate_text(guj_text)
+                # Keep only Gujarati characters, spaces, and full stop
+                gujarati_only = re.sub(r'[^\u0A80-\u0AFF\s\.]', '', guj_text)
+
+                # Normalize spaces (do NOT remove dots)
+                gujarati_only = re.sub(r'\s+', ' ', gujarati_only).strip()
+                eng_text = translate_text(gujarati_only)
 
                 # --- sentiment (unchanged) ---
                 sentiment_gravity = 0.0
