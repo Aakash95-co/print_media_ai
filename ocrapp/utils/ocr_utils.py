@@ -673,7 +673,6 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                         # Normalize and reshape to [1, 384]
                         norm_vec = torch.nn.functional.normalize(current_vec_gpu, p=2, dim=0).unsqueeze(0)
                         
-                        global DAY_VECTORS_GPU, DAY_ARTICLE_IDS, DAY_DISTRICTS
                         if DAY_VECTORS_GPU is None:
                             DAY_VECTORS_GPU = norm_vec
                         else:
