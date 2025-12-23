@@ -65,32 +65,35 @@ def _call_vllm(prompt, json_mode=False):
 def analyze_english_text_with_llm(text):
     """
     Accepts English text.
-    Returns: (gujarati_category_string, is_govt_boolean)
+    Returns: (gujarati_category_string, is_govt_boolean, confidence_score)
     """
     if not text or not text.strip():
-        return "અન્ય", False
+        return "અન્ય", False, 0
 
     # --- 1. Check Government Relevance (JSON Mode) ---
+    # Updated to explicitly exclude Classifieds, Name Changes, and Job Ads
     prompt_govt = (
         f"You are a professional news editor for a government monitoring cell. "
         f"TEXT: '{text}'\n\n"
         f"TASKS:\n"
         f"GOVERNMENT RELEVANCE: Decide if this is Government or Public Interest related (Yes or No).\n"
-        f"   - MARK 'Yes' IF: Involves Govt Departments (Health/Hospitals, Education, Revenue, Police Admin, Municipal Corporations), "
-        f"Public Grievances (Electricity bills, solar panels, water supply, pension), Systemic issues (Pollution/AQI, infrastructure, traffic policy), "
-        f"Politicians, or Administrative Negligence/Scams.\n"
-        f"   - MARK 'No' IF: It is a routine crime where action is already taken (e.g., police caught a thief), "
-        f"private family disputes, or individual accidents with no govt negligence.\n\n"
-        f"OUTPUT: Return strictly a JSON object with keys: 'is_govt'."
+        f"   - MARK 'Yes' IF: Involves Govt Departments (Health, Police, Municipal, Education), "
+        f"Public Grievances (Water, Roads, Pollution), Systemic issues, or Politicians.\n"
+        f"   - MARK 'No' IF: Classified ads, Name change notices, Job postings, Matrimonial ads, "
+        f"Private family disputes, or Individual accidents with no govt negligence.\n\n"
+        f"OUTPUT: Return strictly a JSON object with keys: 'is_govt' (Yes/No) and 'confidence' (0-100 integer)."
     )
     
     is_govt_bool = False
+    confidence = 0
+
     resp_govt = _call_vllm(prompt_govt, json_mode=True)
     if resp_govt:
         try:
             data = json.loads(resp_govt)
             is_govt_str = str(data.get("is_govt", "No")).lower()
             is_govt_bool = True if "yes" in is_govt_str else False
+            confidence = int(data.get("confidence", 0))
         except:
             pass
 
@@ -114,11 +117,7 @@ def analyze_english_text_with_llm(text):
         eng_category = resp_cat.strip()
 
     # Map English category back to Gujarati (fallback to "અન્ય")
-    # We use fuzzy matching logic implicitly via dictionary lookup, 
-    # but since LLM is instructed to output exact string, direct lookup usually works.
-    # If LLM adds quotes or punctuation, we strip them.
     clean_cat = eng_category.replace('"', '').replace("'", "").strip()
-    
     guj_category = ENG_TO_GUJ.get(clean_cat, "અન્ય")
     
-    return guj_category, is_govt_bool
+    return guj_category, is_govt_bool, confidence

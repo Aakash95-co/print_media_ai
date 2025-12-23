@@ -32,6 +32,10 @@ class ArticleInfo(models.Model):
     is_connect_test = models.BooleanField(default=False)
     is_manual = models.BooleanField(default=False)
     is_govt_llm = models.BooleanField(default=False)
-    
+    is_govt_llm_confidence = models.FloatField(null=True, blank=True)
+    # --- Duplicate Detection Fields ---
+    is_duplicate = models.BooleanField(default=False)
+    duplicate_id = models.IntegerField(null=True, blank=True)
+
     def __str__(self):
         return f"{self.pdf_name} - {self.article_id}"
