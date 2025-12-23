@@ -1,5 +1,6 @@
 import requests
 import json
+import re
 
 # --- Configuration ---
 VLLM_URL = "http://localhost:8100/v1/chat/completions"
@@ -40,38 +41,50 @@ GUJ_TO_ENG = {
     "વેરો વસૂલવા અંગે": "Tax collection related", "શહેરી ઇન્ફ્રાસ્ટ્રક્ચરને લગતા પ્રશ્ન": "Urban infrastructure issues",
 }
 
-# Derived helpers
 ENGLISH_CATEGORIES = list(GUJ_TO_ENG.values())
 ENG_TO_GUJ = {eng: guj for guj, eng in GUJ_TO_ENG.items()}
 
-def _call_vllm(prompt, json_mode=False):
+def _call_vllm(prompt, json_mode=False, timeout=30):
     payload = {
         "model": MODEL_NAME,
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0,
-        "max_tokens": 256
+        "temperature": 0.1, 
+        "max_tokens": 512
     }
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
-
     try:
-        resp = requests.post(VLLM_URL, json=payload, timeout=30)
+        resp = requests.post(VLLM_URL, json=payload, timeout=timeout)
         if resp.status_code == 200:
             return resp.json()['choices'][0]['message']['content']
+        else:
+            print(f"⚠️ vLLM Status {resp.status_code}: {resp.text}")
     except Exception as e:
-        print(f"⚠️ vLLM Error: {e}")
+        print(f"⚠️ vLLM Connection Error: {e}")
     return None
+
+def _clean_json_response(text):
+    """
+    Removes markdown code blocks (```json ... ```) from LLM response
+    to ensure json.loads() works.
+    """
+    if not text: return ""
+    # Regex to capture content inside ```json ... ``` or just ``` ... ```
+    pattern = r"```(?:json)?\s*(.*?)\s*```"
+    match = re.search(pattern, text, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return text.strip()
 
 def analyze_english_text_with_llm(text):
     """
-    Accepts English text.
-    Returns: (gujarati_category_string, is_govt_boolean, confidence_score)
+    Input: English text (string)
+    Output: (gujarati_category_string, is_govt_boolean, confidence_score)
     """
     if not text or not text.strip():
         return "અન્ય", False, 0
 
     # --- 1. Check Government Relevance (JSON Mode) ---
-    # Updated to explicitly exclude Classifieds, Name Changes, and Job Ads
     prompt_govt = (
         f"You are a professional news editor for a government monitoring cell. "
         f"TEXT: '{text}'\n\n"
@@ -88,13 +101,20 @@ def analyze_english_text_with_llm(text):
     confidence = 0
 
     resp_govt = _call_vllm(prompt_govt, json_mode=True)
+    
     if resp_govt:
         try:
-            data = json.loads(resp_govt)
+            # Clean markdown before parsing
+            clean_resp = _clean_json_response(resp_govt)
+            data = json.loads(clean_resp)
+            
             is_govt_str = str(data.get("is_govt", "No")).lower()
             is_govt_bool = True if "yes" in is_govt_str else False
             confidence = int(data.get("confidence", 0))
-        except:
+        except Exception as e:
+            # Print the RAW response to debug why parsing failed
+            print(f"⚠️ JSON Parse Error: {e}")
+            print(f"⚠️ RAW LLM OUTPUT: {resp_govt}")
             pass
 
     # --- 2. Check Category (Strict Text Mode) ---
@@ -114,10 +134,17 @@ def analyze_english_text_with_llm(text):
     eng_category = "OTHER"
     resp_cat = _call_vllm(prompt_cat, json_mode=False)
     if resp_cat:
-        eng_category = resp_cat.strip()
+        # Clean potential markdown from category response too
+        eng_category = _clean_json_response(resp_cat).strip()
 
     # Map English category back to Gujarati (fallback to "અન્ય")
     clean_cat = eng_category.replace('"', '').replace("'", "").strip()
+    # Handle cases where LLM might return "Category: Scheme related"
+    for cat in ENGLISH_CATEGORIES:
+        if cat.lower() in clean_cat.lower():
+            clean_cat = cat
+            break
+            
     guj_category = ENG_TO_GUJ.get(clean_cat, "અન્ય")
     
     return guj_category, is_govt_bool, confidence
