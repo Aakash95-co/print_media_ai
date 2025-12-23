@@ -360,7 +360,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
     # -----------------------------------
 
     is_gs = "GS" in (news_paper or "").upper()
-    render_scale = 2.0 # Set to 1.0 as requested
+    render_scale = 2.0 
     use_enhancement = False if is_gs else True
     
     doc = fitz.open(pdf_path)
@@ -421,7 +421,6 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     # Title detection
                     if ("title" in name_l) or ("headline" in name_l):
                         sub_crop = crop[y1b:y2b, x1b:x2b]
-                        # Pass enhance flag
                         txt = ocr_crop(sub_crop, config=title_config, enhance=use_enhancement)
                         if txt:
                             title_parts.append((x1b, y1b, txt, w, h))
@@ -430,17 +429,14 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     # Plain text detection
                     if any(k in name_l for k in ["text", "paragraph", "body", "plain", "figure_caption"]):
                         sub_crop = crop[y1b:y2b, x1b:x2b]
-                        # Pass enhance flag
                         txt = ocr_crop(sub_crop, config=custom_config, enhance=use_enhancement)
                         if txt:
                             txt += ' --- '
                             plain_parts.append((x1b, y1b, txt, w, h))
                         continue
-
-                    # Ignore all other classes
                     continue
 
-                # -------- APPLY MERGING + DEDUP (FROM REF) --------
+                # -------- APPLY MERGING + DEDUP --------
                 article_height = y2 - y1
                 ordered_titles = _normalize_blocks(title_parts, article_height)
                 ordered_plain = _normalize_blocks(plain_parts, article_height)
@@ -448,19 +444,10 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 guj_title = " ".join([b[2] for b in ordered_titles])
                 guj_text = " ".join([b[2] for b in ordered_plain])
 
-                # --- Clean Text: Remove emojis & garbage ---
-                # Keep: Alphanumeric (\w), Spaces (\s), and Punctuation (.,'"?!-)
-                # This removes emojis, |, [, ], {, }, etc.
-                # clean_pattern = r'[^\w\s.,\'"?!-]'
-                # guj_title = re.sub(clean_pattern, '', guj_title)
-                # guj_text = re.sub(clean_pattern, '', guj_text)
-
                 if not guj_text.strip():
                     continue
-                # Keep only Gujarati characters, spaces, and full stop
+                
                 gujarati_only = re.sub(r'[^\u0A80-\u0AFF\s\.]', '', guj_text)
-
-                # Normalize spaces (do NOT remove dots)
                 gujarati_only = re.sub(r'\s+', ' ', gujarati_only).strip()
                 eng_text = translate_text(gujarati_only)
 
@@ -469,27 +456,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 print(f"🔍 LLM Observation -> Category: {cate_llm}, Is_Govt: {is_govt_llm}, Conf: {conf_llm}%")
                 # --- LLM OBSERVATION END ---
 
-                # --- DUPLICATE CHECK (L40 GPU) START ---
-                is_duplicate = False
-                duplicate_original_id = None
-                current_vec_gpu = None
-                
-                # Ensure we have a district string for comparison
-                check_district = district if district else "NA"
-
-                if EMBEDDER and eng_text:
-                    try:
-                        # Generate vector directly on GPU
-                        current_vec_gpu = EMBEDDER.encode(eng_text, convert_to_tensor=True, device=DEVICE)
-                        # Pass district here
-                        is_duplicate, duplicate_original_id = check_duplicate_l40(current_vec_gpu, check_district)
-                        if is_duplicate:
-                            print(f"⚡ Duplicate Detected in {check_district}! Matches ID: {duplicate_original_id}")
-                    except Exception as e:
-                        print(f"⚠️ Duplicate Check Error: {e}")
-                # --- DUPLICATE CHECK END ---
-
-                # --- sentiment (unchanged) ---
+                # --- sentiment ---
                 sentiment_gravity = 0.0
                 sentiment_label = ""
                 sentiment_raw = analyze_sentiment(eng_text)
@@ -508,16 +475,11 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 is_govt = False
                 try:
                     if EMBEDDER and CLASSIFIER_SVM and eng_text:
-                        # Split lines (same behavior as Dash app)
                         lines = [line.strip() for line in eng_text.split("\n") if line.strip()]
-                        if not lines:
-                             lines = [eng_text.strip()]
-                        
+                        if not lines: lines = [eng_text.strip()]
                         if lines:
                             embeddings = EMBEDDER.encode(lines)
                             preds = CLASSIFIER_SVM.predict(embeddings)
-                            
-                            # If any line is classified as Govt (1), mark article as Govt
                             if 1 in preds:
                                 model_pred = 1
                                 is_govt = True
@@ -527,16 +489,12 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 except Exception as e:
                     print(f"Govt Classification Error: {e}")
                     is_govt = False
-                
-                # keep compatibility; no keyword detected here
                 govt_word = ""
                 # --- end government classifier ---
 
-                # Print diagnostics (title & sentiment gravity)
-                if guj_title:
-                    print(f"[Title] {guj_title}")
-                else:
-                    print("[Title] (none)")
+                # Print diagnostics
+                if guj_title: print(f"[Title] {guj_title}")
+                else: print("[Title] (none)")
                 print(f"[Sentiment] label={sentiment_label} gravity={sentiment_gravity}")
                 print(f"[GovClassifier] is_govt={is_govt}")
 
@@ -562,61 +520,51 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 try:
                     dist_preds = DISTRICT_MODEL.predict(crop, verbose=False)
                     if dist_preds and len(dist_preds[0].boxes) > 0:
-                        # Get the highest confidence box
                         d_box = dist_preds[0].boxes[0]
                         dx1, dy1, dx2, dy2 = map(int, d_box.xyxy[0].tolist())
-                        
-                        # Clip coordinates to crop dimensions
                         h_c, w_c = crop.shape[:2]
                         dx1, dy1 = max(0, dx1), max(0, dy1)
                         dx2, dy2 = min(w_c, dx2), min(h_c, dy2)
-                        
                         if dx2 > dx1 and dy2 > dy1:
                             dist_crop = crop[dy1:dy2, dx1:dx2]
-                            # Run OCR on the specific district crop
                             district_ocr_text = ocr_crop(dist_crop, config=title_config, enhance=use_enhancement)
                 except Exception as e:
                     print(f"District Model Error: {e}")
 
-                # If model found text, try to match district
                 if district_ocr_text:
                     clean_dist = district_ocr_text
-                    for u in unwanted:
-                        clean_dist = clean_dist.replace(u, "")
+                    for u in unwanted: clean_dist = clean_dist.replace(u, "")
                     district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(clean_dist)
-                    if district:
-                        string_type = f"YOLO_Model_{string_type}"
+                    if district: string_type = f"YOLO_Model_{string_type}"
 
-                # 2. Fallback to Full Text (Existing Logic)
+                # 2. Fallback to Full Text
                 if district is None:
                     clean_text = guj_text
-                    for u in unwanted:
-                        clean_text = clean_text.replace(u, "")
+                    for u in unwanted: clean_text = clean_text.replace(u, "")
                     district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(clean_text)
 
-                # 3. Fallback to Title (Existing Logic)
+                # 3. Fallback to Title
                 if district is None and guj_title:
                     clean_title = guj_title
-                    for u in unwanted:
-                        clean_title = clean_title.replace(u, "")
+                    for u in unwanted: clean_title = clean_title.replace(u, "")
                     district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(clean_title)
                 #### district strings #####
 
                 prabhag_name, prabhag_ID, confidence = PRABHAG_PREDICTOR.predict(eng_text)
                 print(f"{is_govt, govt_word, category, cat_word, district, taluka, cat_id, dcode, tcode, prabhag_name, prabhag_ID} --- model_pred: {model_pred} ")
+                
                 # save crop image
                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
                 img_name = f"article_{page_num+1}_{i+1}_{ts}.png"
                 save_path = os.path.join(settings.MEDIA_ROOT, "articles", img_name)
                 os.makedirs(os.path.dirname(save_path), exist_ok=True)
                 cv2.imwrite(save_path, crop)
+                
                 is_govt_push_nic = False
-                if article_type_pred == "article" and model_pred == 1  and sentiment_label in ["negative", "neutral"]:  #and district is not None
+                if article_type_pred == "article" and model_pred == 1  and sentiment_label in ["negative", "neutral"]:
                     is_govt_push_nic = True
 
-                # Use provided newspaper name, fallback to filename if empty
                 final_newspaper_name = news_paper if news_paper else os.path.basename(pdf_path)
-                # article_remarks = district + ', '+ taluka +', '+ str(dcode) + str(tcode) + string_type + str(match_index) + matched_token + f" model pred {model_pred}" +  f"article_type_pred : {article_type_pred} " 
                 article_remarks = (
                         f"{district}, {taluka}, "
                         f"{dcode}-{tcode}, "
@@ -627,15 +575,34 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                         f"article_type_pred={article_type_pred},"
                         f"{conf_llm}%"
                     )
+                
                 is_manual = False
                 if is_article:
                     is_govt_push_nic = True
                     district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(article_district)
                     is_manual = True
 
+                # --- DUPLICATE CHECK (L40 GPU) START ---
+                # MOVED HERE: Now 'district' is fully resolved (including manual override)
+                is_duplicate = False
+                duplicate_original_id = None
+                current_vec_gpu = None
+                
+                check_district = district if district else "NA"
+
+                if EMBEDDER and eng_text:
+                    try:
+                        current_vec_gpu = EMBEDDER.encode(eng_text, convert_to_tensor=True, device=DEVICE)
+                        is_duplicate, duplicate_original_id = check_duplicate_l40(current_vec_gpu, check_district)
+                        if is_duplicate:
+                            print(f"⚡ Duplicate Detected in {check_district}! Matches ID: {duplicate_original_id}")
+                    except Exception as e:
+                        print(f"⚠️ Duplicate Check Error: {e}")
+                # --- DUPLICATE CHECK END ---
+
                 article = ArticleInfo.objects.create(
                     pdf_name=final_newspaper_name if final_newspaper_name else "NA",
-                    pdf_link=pdf_link if pdf_link else "NA",  # <--- Save the PDF link here
+                    pdf_link=pdf_link if pdf_link else "NA",
                     page_number=page_num + 1,
                     article_id=f"Article_{i+1}",
                     gujarati_title=guj_title if guj_title else "NA",
@@ -662,25 +629,23 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     remarks = article_remarks,
                     is_manual = is_manual,
                     is_govt_llm = is_govt_llm,
-                    is_duplicate = is_duplicate,          # <--- NEW
-                    duplicate_id = duplicate_original_id , # <--- NEW
+                    is_duplicate = is_duplicate,          
+                    duplicate_id = duplicate_original_id , 
                     is_govt_llm_confidence = conf_llm 
                 )
                 
                 # --- UPDATE GPU CACHE ---
                 if current_vec_gpu is not None:
                     try:
-                        # Normalize and reshape to [1, 384]
                         norm_vec = torch.nn.functional.normalize(current_vec_gpu, p=2, dim=0).unsqueeze(0)
                         
                         if DAY_VECTORS_GPU is None:
                             DAY_VECTORS_GPU = norm_vec
                         else:
-                            # Stack new vector into matrix
                             DAY_VECTORS_GPU = torch.cat([DAY_VECTORS_GPU, norm_vec], dim=0)
                         
                         DAY_ARTICLE_IDS.append(article.id)
-                        DAY_DISTRICTS.append(check_district) # <--- Save District
+                        DAY_DISTRICTS.append(check_district) 
                     except Exception as e:
                         print(f"⚠️ GPU Cache Update Error: {e}")
 
