@@ -79,10 +79,10 @@ def _clean_json_response(text):
 def analyze_english_text_with_llm(text):
     """
     Input: English text (string)
-    Output: (gujarati_category_string, is_govt_boolean, confidence_score)
+    Output: (gujarati_category_string, is_govt_boolean, confidence_score, sentiment_string)
     """
     if not text or not text.strip():
-        return "અન્ય", False, 0
+        return "અન્ય", False, 0, "Neutral"
 
     # --- 1. Check Government Relevance (JSON Mode) ---
     prompt_govt = (
@@ -146,5 +146,37 @@ def analyze_english_text_with_llm(text):
             break
             
     guj_category = ENG_TO_GUJ.get(clean_cat, "અન્ય")
+
+    # --- 3. Check Sentiment (New) ---
+    sentiment_str = "Neutral"
+    try:
+        # Manually constructing payload to support System Prompt
+        payload = {
+            "model": MODEL_NAME,
+            "messages": [
+                {
+                    "role": "system", 
+                    "content": "You are a strict data classifier. Analyze the sentiment based ONLY on the factual content (events/actions). Return exactly one word: 'Positive', 'Negative', or 'Neutral'."
+                },
+                {"role": "user", "content": f"Text: {text}"}
+            ],
+            "temperature": 0.1, 
+            "max_tokens": 64
+        }
+        
+        resp_sent = requests.post(VLLM_URL, json=payload, timeout=30)
+        if resp_sent.status_code == 200:
+            raw_sent = resp_sent.json()['choices'][0]['message']['content']
+            cleaned_sent = _clean_json_response(raw_sent).strip()
+            
+            # Normalize response
+            if "positive" in cleaned_sent.lower(): sentiment_str = "Positive"
+            elif "negative" in cleaned_sent.lower(): sentiment_str = "Negative"
+            else: sentiment_str = "Neutral"
+        else:
+            print(f"⚠️ vLLM Sentiment Status {resp_sent.status_code}")
+
+    except Exception as e:
+        print(f"⚠️ vLLM Sentiment Error: {e}")
     
-    return guj_category, is_govt_bool, confidence
+    return guj_category, is_govt_bool, confidence, sentiment_str

@@ -500,7 +500,8 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 cv2.imwrite(save_path, crop)
                 
                 is_govt_push_nic = False
-                if article_type_pred == "article" and model_pred == 1  and sentiment_label in ["negative", "neutral"]:
+                if article_type_pred == "article" and model_pred == 1  and sentiment_label in ["negative"] \
+                    and is_govt_llm and district not in [None, "Unknown"]:
                     is_govt_push_nic = True
 
                 final_newspaper_name = news_paper if news_paper else os.path.basename(pdf_path)
