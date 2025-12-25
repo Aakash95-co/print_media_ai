@@ -17,6 +17,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from PIL import Image, ImageOps, ImageFilter
 from django.conf import settings
+from pgvector.django import L2Distance
 
 # --- Model Imports ---
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
@@ -600,6 +601,29 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                         print(f"⚠️ Duplicate Check Error: {e}")
                 # --- DUPLICATE CHECK END ---
 
+                # --- DUPLICATE CHECK (DB BASED) ---
+                is_duplicate = False
+                duplicate_original_id = None
+
+                if EMBEDDER and eng_text and district and district != "NA":
+                    # 1. Generate Vector
+                    vec = EMBEDDER.encode(eng_text) # Returns numpy array
+                    
+                    # 2. Query DB for similar articles today in same district
+                    # threshold 0.12 distance roughly equals 0.88 cosine similarity
+                    similar_articles = ArticleInfo.objects.filter(
+                        created_at__date=datetime.now().date(),
+                        district=district
+                    ).annotate(
+                        distance=L2Distance('embedding', vec)
+                    ).filter(distance__lt=0.15).order_by('distance')[:1]
+
+                    if similar_articles.exists():
+                        match = similar_articles.first()
+                        is_duplicate = True
+                        duplicate_original_id = match.id
+                        print(f"⚡ Duplicate Found in DB! Matches ID: {match.id}")
+
                 article = ArticleInfo.objects.create(
                     pdf_name=final_newspaper_name if final_newspaper_name else "NA",
                     pdf_link=pdf_link if pdf_link else "NA",
@@ -631,7 +655,8 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     is_govt_llm = is_govt_llm,
                     is_duplicate = is_duplicate,          
                     duplicate_id = duplicate_original_id , 
-                    is_govt_llm_confidence = conf_llm 
+                    is_govt_llm_confidence = conf_llm ,
+                    embedding = vec, # Save vector to DB
                 )
                 
                 # --- UPDATE GPU CACHE ---

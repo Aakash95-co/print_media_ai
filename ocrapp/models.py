@@ -1,4 +1,5 @@
 from django.db import models
+from pgvector.django import VectorField  # pip install pgvector
 
 class ArticleInfo(models.Model):
     pdf_name = models.CharField(max_length=255)
@@ -36,6 +37,7 @@ class ArticleInfo(models.Model):
     # --- Duplicate Detection Fields ---
     is_duplicate = models.BooleanField(default=False)
     duplicate_id = models.IntegerField(null=True, blank=True)
+    embedding = VectorField(dimensions=384, null=True, blank=True) # <--- ADD THIS
 
     def __str__(self):
         return f"{self.pdf_name} - {self.article_id}"
