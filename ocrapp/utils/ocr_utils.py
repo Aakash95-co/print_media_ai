@@ -58,11 +58,10 @@ RECOGNITION_MODEL = None
 GOVT_NEWS_MODEL = None
 PRABHAG_PREDICTOR = None
 
-# --- GPU Cache for Deduplication ---
-DAY_VECTORS_GPU = None  # Tensor on CUDA: [N, 384]
-DAY_ARTICLE_IDS = []    # List mapping index to DB ID
-DAY_DISTRICTS = []      # <--- NEW: List to track district for each vector
-LAST_CACHE_DATE = None  # <--- NEW: Track when we last cleared the cache
+# --- DUPLICATE DETECTION CONFIG ---
+# Threshold for L2 Distance (Lower = Stricter/More Similar)
+# 0.50 L2 Distance is approximately 87% Cosine Similarity
+DUPLICATE_THRESHOLD_L2 = 0.50 
 
 # ==============================================================================
 # 2. LAZY LOADING FUNCTION (Called inside the worker process)
@@ -291,49 +290,6 @@ def _normalize_blocks(blocks, article_height):
         out.append([x1, y1, t, x2 - x1, y2 - y1])
     return out
 
-# --- L40 Fast Duplicate Check ---
-def check_duplicate_l40(new_embedding, current_district, threshold=0.85):
-    """
-    new_embedding: Tensor of shape [384] on GPU
-    current_district: str (e.g., "Ahmedabad")
-    Returns: (is_duplicate: bool, original_id: int or None)
-    """
-    global DAY_VECTORS_GPU, DAY_ARTICLE_IDS, DAY_DISTRICTS
-
-    # --- NEW RULE: If district is unknown, never mark as duplicate ---
-    if not current_district or current_district == "NA":
-        return False, None
-
-    if DAY_VECTORS_GPU is None:
-        return False, None
-
-    # 1. Normalize the new embedding for Dot Product similarity
-    # unsqueeze(0) makes it [1, 384]
-    new_embedding = torch.nn.functional.normalize(new_embedding, p=2, dim=0).unsqueeze(0)
-
-    # 2. Compute similarity against all previous vectors at once
-    # DAY_VECTORS_GPU is [N, 384]. Transpose to [384, N]. Result is [1, N]
-    similarities = torch.mm(new_embedding, DAY_VECTORS_GPU.t())
-
-    # 3. --- APPLY DISTRICT MASK ---
-    # Create a boolean mask: True where district matches, False otherwise
-    # Since we already returned if current_district is NA, we know it has a valid value here.
-    
-    # indices where district does NOT match
-    mismatch_indices = [i for i, d in enumerate(DAY_DISTRICTS) if d != current_district]
-    
-    if mismatch_indices:
-        # Set similarity to -1 for different districts so they are never picked
-        similarities[0, mismatch_indices] = -1.0
-
-    # 4. Find the best match
-    max_score, max_idx = torch.max(similarities[0], dim=0)
-
-    if max_score.item() > threshold:
-        return True, DAY_ARTICLE_IDS[max_idx.item()]
-    
-    return False, None
-
 # ==============================================================================
 # 4. MAIN PROCESS FUNCTION
 # ==============================================================================
@@ -341,24 +297,6 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
     
     # 🔥 CRITICAL: Load models ONLY when the task starts
     load_models_if_needed()
-
-    # --- AUTOMATIC DAILY CACHE CLEAR ---
-    global DAY_VECTORS_GPU, DAY_ARTICLE_IDS, DAY_DISTRICTS, LAST_CACHE_DATE
-    current_date = datetime.now().date()
-    
-    if LAST_CACHE_DATE is None:
-        LAST_CACHE_DATE = current_date
-    elif current_date != LAST_CACHE_DATE:
-        print(f"🔄 New Day Detected ({current_date}). Clearing GPU Duplicate Cache...")
-        DAY_VECTORS_GPU = None
-        DAY_ARTICLE_IDS = []
-        DAY_DISTRICTS = []
-        LAST_CACHE_DATE = current_date
-        # Optional: Force garbage collection
-        import gc
-        gc.collect()
-        torch.cuda.empty_cache()
-    # -----------------------------------
 
     is_gs = "GS" in (news_paper or "").upper()
     render_scale = 2.0 
@@ -583,46 +521,33 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(article_district)
                     is_manual = True
 
-                # --- DUPLICATE CHECK (L40 GPU) START ---
-                # MOVED HERE: Now 'district' is fully resolved (including manual override)
+                # --- CONSOLIDATED DUPLICATE CHECK (DB BASED) ---
                 is_duplicate = False
                 duplicate_original_id = None
-                current_vec_gpu = None
-                
-                check_district = district if district else "NA"
+                vec = None
 
                 if EMBEDDER and eng_text:
                     try:
-                        current_vec_gpu = EMBEDDER.encode(eng_text, convert_to_tensor=True, device=DEVICE)
-                        is_duplicate, duplicate_original_id = check_duplicate_l40(current_vec_gpu, check_district)
-                        if is_duplicate:
-                            print(f"⚡ Duplicate Detected in {check_district}! Matches ID: {duplicate_original_id}")
+                        # 1. Generate Vector (Numpy array for DB)
+                        vec = EMBEDDER.encode(eng_text) 
+                        
+                        # 2. Query DB if we have a valid district
+                        # Logic: Same Day + Same District + Similarity Threshold
+                        if district and district != "NA":
+                            similar_articles = ArticleInfo.objects.filter(
+                                created_at__date=datetime.now().date(), # Same Day
+                                district=district                       # Same District
+                            ).annotate(
+                                distance=L2Distance('embedding', vec)
+                            ).filter(distance__lt=DUPLICATE_THRESHOLD_L2).order_by('distance')[:1] # Threshold
+
+                            if similar_articles.exists():
+                                match = similar_articles.first()
+                                is_duplicate = True
+                                duplicate_original_id = match.id
+                                print(f"⚡ Duplicate Found in DB! Matches ID: {match.id} (Dist: {match.distance:.4f})")
                     except Exception as e:
-                        print(f"⚠️ Duplicate Check Error: {e}")
-                # --- DUPLICATE CHECK END ---
-
-                # --- DUPLICATE CHECK (DB BASED) ---
-                is_duplicate = False
-                duplicate_original_id = None
-
-                if EMBEDDER and eng_text and district and district != "NA":
-                    # 1. Generate Vector
-                    vec = EMBEDDER.encode(eng_text) # Returns numpy array
-                    
-                    # 2. Query DB for similar articles today in same district
-                    # threshold 0.12 distance roughly equals 0.88 cosine similarity
-                    similar_articles = ArticleInfo.objects.filter(
-                        created_at__date=datetime.now().date(),
-                        district=district
-                    ).annotate(
-                        distance=L2Distance('embedding', vec)
-                    ).filter(distance__lt=0.15).order_by('distance')[:1]
-
-                    if similar_articles.exists():
-                        match = similar_articles.first()
-                        is_duplicate = True
-                        duplicate_original_id = match.id
-                        print(f"⚡ Duplicate Found in DB! Matches ID: {match.id}")
+                        print(f"⚠️ Embedding/Duplicate Check Error: {e}")
 
                 article = ArticleInfo.objects.create(
                     pdf_name=final_newspaper_name if final_newspaper_name else "NA",
@@ -659,21 +584,6 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     embedding = vec, # Save vector to DB
                 )
                 
-                # --- UPDATE GPU CACHE ---
-                if current_vec_gpu is not None:
-                    try:
-                        norm_vec = torch.nn.functional.normalize(current_vec_gpu, p=2, dim=0).unsqueeze(0)
-                        
-                        if DAY_VECTORS_GPU is None:
-                            DAY_VECTORS_GPU = norm_vec
-                        else:
-                            DAY_VECTORS_GPU = torch.cat([DAY_VECTORS_GPU, norm_vec], dim=0)
-                        
-                        DAY_ARTICLE_IDS.append(article.id)
-                        DAY_DISTRICTS.append(check_district) 
-                    except Exception as e:
-                        print(f"⚠️ GPU Cache Update Error: {e}")
-
                 print(article.image)
                 if is_govt_push_nic:
                     #insert_news_analysis_entry(article)
