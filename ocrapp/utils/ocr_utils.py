@@ -391,7 +391,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 eng_text = translate_text(gujarati_only)
 
                 # --- LLM OBSERVATION START ---
-                cate_llm, is_govt_llm, conf_llm = analyze_english_text_with_llm(eng_text)
+                cate_llm, is_govt_llm, conf_llm, sentiment_llm = analyze_english_text_with_llm(eng_text)
                 print(f"🔍 LLM Observation -> Category: {cate_llm}, Is_Govt: {is_govt_llm}, Conf: {conf_llm}%")
                 # --- LLM OBSERVATION END ---
 
@@ -501,7 +501,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 
                 is_govt_push_nic = False
                 if article_type_pred == "article" and model_pred == 1  and sentiment_label in ["negative"] \
-                    and is_govt_llm and district not in [None, "Unknown"]:
+                    and is_govt_llm == True and district not in [None, "Unknown"] and sentiment_llm == "Negative" and is_duplicate == False :
                     is_govt_push_nic = True
 
                 final_newspaper_name = news_paper if news_paper else os.path.basename(pdf_path)
