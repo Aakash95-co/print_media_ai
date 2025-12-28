@@ -529,24 +529,46 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
 
                 if EMBEDDER and eng_text:
                     try:
-                        # 1. Generate Vector (Numpy array for DB)
+                        # 1. Generate Vector
                         vec = EMBEDDER.encode(eng_text) 
                         
-                        # 2. Query DB if we have a valid district
-                        # Logic: Same Day + Same District + Similarity Threshold
+                        # 2. Query DB (With District Filter)
                         if district and district != "NA":
                             similar_articles = ArticleInfo.objects.filter(
-                                created_at__date=datetime.now().date(), # Same Day
-                                district=district                       # Same District
+                                created_at__date=datetime.now().date(),
+                                district=district  # <--- KEPT AS REQUESTED
                             ).annotate(
                                 distance=L2Distance('embedding', vec)
-                            ).filter(distance__lt=DUPLICATE_THRESHOLD_L2).order_by('distance')[:1] # Threshold
+                            ).filter(distance__lt=DUPLICATE_THRESHOLD_L2).order_by('distance')[:1]
 
                             if similar_articles.exists():
                                 match = similar_articles.first()
                                 is_duplicate = True
                                 duplicate_original_id = match.id
-                                print(f"⚡ Duplicate Found in DB! Matches ID: {match.id} (Dist: {match.distance:.4f})")
+                                print(f"⚡ Duplicate Found in DB! Matches ID: {match.id}")
+                        
+                        # --- 3. RACE CONDITION FIX (The 0.3s Delay) ---
+                        # Only run this if we think it's unique so far
+                        if not is_duplicate and district and district != "NA":
+                            import time, random
+                            # Wait 0.1 to 0.5 seconds to let other workers commit
+                            time.sleep(random.uniform(0.1, 0.5))
+                            
+                            # Re-run the exact same check
+                            # (This catches the record inserted by another worker during the sleep)
+                            double_check = ArticleInfo.objects.filter(
+                                created_at__date=datetime.now().date(),
+                                district=district
+                            ).annotate(
+                                distance=L2Distance('embedding', vec)
+                            ).filter(distance__lt=DUPLICATE_THRESHOLD_L2).order_by('distance')[:1]
+
+                            if double_check.exists():
+                                match = double_check.first()
+                                is_duplicate = True
+                                duplicate_original_id = match.id
+                                print(f"⚡ Race-Condition Duplicate Caught! Matches ID: {match.id}")
+
                     except Exception as e:
                         print(f"⚠️ Embedding/Duplicate Check Error: {e}")
 
