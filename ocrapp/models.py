@@ -38,6 +38,12 @@ class ArticleInfo(models.Model):
     is_duplicate = models.BooleanField(default=False)
     duplicate_id = models.IntegerField(null=True, blank=True)
     embedding = VectorField(dimensions=384, null=True, blank=True) # <--- ADD THIS
+    is_urgent = models.BooleanField(default=False)
+    is_similar = models.BooleanField(default=False)
+    similar_id = models.IntegerField(null=True, blank=True)
+    extra_flag_bool = models.BooleanField(default=False)
+    extra_flag_text = models.CharField(max_length=255, blank=True, null=True)
+    extra_flag_confidence = models.FloatField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.pdf_name} - {self.article_id}"

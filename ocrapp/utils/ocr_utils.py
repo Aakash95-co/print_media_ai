@@ -293,7 +293,7 @@ def _normalize_blocks(blocks, article_height):
 # ==============================================================================
 # 4. MAIN PROCESS FUNCTION
 # ==============================================================================
-def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=False, article_district=None, is_connect=False) :
+def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=False, article_district=None, is_connect=False, is_urgent=False):
     
     # 🔥 CRITICAL: Load models ONLY when the task starts
     load_models_if_needed()
@@ -498,11 +498,6 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 save_path = os.path.join(settings.MEDIA_ROOT, "articles", img_name)
                 os.makedirs(os.path.dirname(save_path), exist_ok=True)
                 cv2.imwrite(save_path, crop)
-                
-                is_govt_push_nic = False
-                if article_type_pred == "article" and model_pred == 1  and sentiment_label in ["negative"] \
-                    and is_govt_llm == True and district not in [None, "Unknown"] and sentiment_llm == "Negative" and is_duplicate == False :
-                    is_govt_push_nic = True
 
                 final_newspaper_name = news_paper if news_paper else os.path.basename(pdf_path)
                 article_remarks = (
@@ -515,13 +510,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                         f"article_type_pred={article_type_pred},"
                         f"{conf_llm}%"
                     )
-                
-                is_manual = False
-                if is_article:
-                    is_govt_push_nic = True
-                    district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(article_district)
-                    is_manual = True
-
+            
                 # --- CONSOLIDATED DUPLICATE CHECK (DB BASED) ---
                 is_duplicate = False
                 duplicate_original_id = None
@@ -572,6 +561,20 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     except Exception as e:
                         print(f"⚠️ Embedding/Duplicate Check Error: {e}")
 
+                is_govt_push_nic = False
+                if article_type_pred == "article" and model_pred == 1  and sentiment_label in ["negative"] \
+                    and is_govt_llm == True and district not in [None, "Unknown"] and sentiment_llm == "Negative" and is_duplicate == False :
+
+                    is_govt_push_nic = True
+                
+                is_manual = False
+                if is_article:
+                    is_govt_push_nic = True
+                    district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(article_district)
+                    is_manual = True
+                    is_urgent = True  # Force urgent for manual articles
+
+
                 article = ArticleInfo.objects.create(
                     pdf_name=final_newspaper_name if final_newspaper_name else "NA",
                     pdf_link=pdf_link if pdf_link else "NA",
@@ -605,6 +608,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     duplicate_id = duplicate_original_id , 
                     is_govt_llm_confidence = conf_llm ,
                     embedding = vec, # Save vector to DB
+                    is_urgent = is_urgent,
                 )
                 
                 print(article.image)

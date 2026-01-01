@@ -25,7 +25,7 @@ GUJ_TO_ENG = {
     "બેંક લગત": "Bank related", "ગુના અને કાયદા અમલીકરણ લગત": "Crime and law enforcement related",
     "ટ્રાફિક અને માર્ગ સુરક્ષા બાબતે": "Traffic and road safety related", "દબાણ લગત પ્રશ્નો": "Pressure-related issues",
     "વિજ ચોરી લગત": "Electricity theft related", "અકસ્માત / અકસ્માતનુ જોખમ": "Accident/accident risk",
-    "ભ્રષ્ટાચાર": "Corruption", "ગેરકાયદેસર ખનન": "Illegal mining",
+    "કૌભાંડ / ભ્રષ્ટાચાર": "Corruption / Scam", "ગેરકાયદેસર ખનન": "Illegal mining",
     "કર્મચારીઓ અંગે": "Employees related", "નીતિ અમલીકરણ લગત": "Policy implementation related",
     "બેરોજગારી/આર્થિક સમસ્યા": "Unemployment/economic issues", "પ્રદૂષણ": "Pollution",
     "સ્ટ્રીટ લાઈટને લગત": "Street light related", "ફૂડ/વોટર સેફ્ટી બાબતે": "Food/water safety related",
