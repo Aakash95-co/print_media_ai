@@ -569,10 +569,29 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 
                 is_manual = False
                 if is_article:
-                    is_govt_push_nic = True
-                    district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(article_district)
                     is_manual = True
-                    is_urgent = True  # Force urgent for manual articles
+                    # Manual article: Strictly get district from dcode only
+                    try:
+                        if article_district:
+                            # Convert input to int (dcode)
+                            d_id = int(article_district)
+                            
+                            # Map directly using GovtInfo
+                            if d_id in GovtInfo.district_id_mapping:
+                                district = GovtInfo.district_id_mapping.get(d_id)
+                                dcode = d_id
+                                
+                                # Reset other fields to ensure data consistency
+                                taluka = None
+                                tcode = None
+                                string_type = "MANUAL_DCODE"
+                                match_index = -1
+                                matched_token = str(article_district)
+                    except Exception as e:
+                        print(f"⚠️ Manual dcode mapping error: {e}")
+                        district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(article_district)
+                    # keep is_urgent as passed (you can force if desired)
+                    # is_urgent = True  # optional: force urgent for manual articles
 
 
                 article = ArticleInfo.objects.create(

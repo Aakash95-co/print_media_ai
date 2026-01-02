@@ -55,8 +55,10 @@ def ocr_upload_view(request):
         if article_param == "article":
             is_article = True
 
-        if is_urgent:
+        if is_urgent == 1:
             is_urgent = True
+        else:
+             is_urgent = False
                        
         print(f"Queuing task for: {new_filename}")
         
