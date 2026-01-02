@@ -616,22 +616,25 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     #insert_news_analysis_entry(article)
                     article_info_insert = (
                             article.page_number or 1,                              # 1 -> @Page_id INT
-                            i + 1 or 1,                                          # 2 -> @Article_id INT (✅ changed from string to int)
-                            article.pdf_name or "",                           # 3 -> @Newspaper_name NVARCHAR(200)
-                            str(article.image) or "" ,                        # 4 -> article.image or "" ,                          # 4 -> @Article_link NVARCHAR(500)
-                            article.gujarati_text or "",                # 5 -> @Gujarati_Text NVARCHAR(MAX)
-                            article.translated_text or "",         # 6 -> @English_Text NVARCHAR(MAX)
-                            article.sentiment or "",               # 7 -> @Text_Sentiment NVARCHAR(100)
-                            article.is_govt or 0,                             # 8 -> @Is_govt BIT
-                            article.article_category or "",        #9 -> @Category NVARCHAR(200)
-                            article.prabhag or "",                       # 10 -> @Prabhag NVARCHAR(200)
-                            article.district or "",                # 11 -> @District NVARCHAR(200)
-                            article.Dcode or None,                                  # 12 -> @Dcode INT
-                            article.Tcode or "",            # 13 -> @Tcode VARCHAR(50)
-                            article.cat_Id or None,                                  # 14 -> @Cat_code INT
-                            article.article_type or "",             # 15 -> @Title NVARCHAR(500)
-                            0 ,                                     # 16 - prabhagID
-                            article.id                              # 17 - AI_ID INT
+                            i + 1 or 1,                                            # 2 -> @Article_id INT
+                            article.pdf_name or "",                                # 3 -> @Newspaper_name NVARCHAR(200)
+                            str(article.image) or "" ,                             # 4 -> @Article_link NVARCHAR(500)
+                            article.gujarati_text or "",                           # 5 -> @Gujarati_Text NVARCHAR(MAX)
+                            article.translated_text or "",                         # 6 -> @English_Text NVARCHAR(MAX)
+                            article.sentiment or "",                               # 7 -> @Text_Sentiment NVARCHAR(100)
+                            article.is_govt or 0,                                  # 8 -> @Is_govt BIT
+                            article.article_category or "",                        # 9 -> @Category NVARCHAR(200)
+                            article.prabhag or "",                                 # 10 -> @Prabhag NVARCHAR(200)
+                            article.district or "",                                # 11 -> @District NVARCHAR(200)
+                            article.Dcode or None,                                 # 12 -> @Dcode INT
+                            article.Tcode or "",                                   # 13 -> @Tcode VARCHAR(50)
+                            article.cat_Id or None,                                # 14 -> @Cat_code INT
+                            article.article_type or "",                            # 15 -> @Title NVARCHAR(500)
+                            0 ,                                                    # 16 - prabhagID
+                            article.id,                                            # 17 - AI_ID INT
+                            1 if article.is_urgent else 0,                         # 18 - @Is_Urgent INT (1/0)
+                            1 if article.is_duplicate else 0,                      # 19 - @Is_Duplicate INT (1/0)
+                            article.duplicate_id if article.duplicate_id else 0    # 20 - @Duplicate_AI_ID INT
                     )
 
                     # --------------------------------------------
