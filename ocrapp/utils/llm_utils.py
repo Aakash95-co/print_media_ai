@@ -1,6 +1,7 @@
 import requests
 import json
 import re
+from difflib import get_close_matches
 
 # --- Configuration ---
 VLLM_URL = "http://localhost:8100/v1/chat/completions"
@@ -44,6 +45,61 @@ GUJ_TO_ENG = {
 ENGLISH_CATEGORIES = list(GUJ_TO_ENG.values())
 ENG_TO_GUJ = {eng: guj for guj, eng in GUJ_TO_ENG.items()}
 
+# --- PRABHAG DATA (Added) ---
+PRABHAG_DATA = [
+    {"id": 1, "guj": "અન્ન નાગરિક પુરવઠો અને ગ્રાહક બાબતોનો વિભાગ", "eng": "Food, Civil Supplies & Consumer Affairs Department"},
+    {"id": 2, "guj": "આદિજાતિ વિકાસ વિભાગ", "eng": "Tribal Development Department"},
+    {"id": 3, "id_img": 3, "guj": "આરોગ્ય અને પરિવાર કલ્યાણ વિભાગ (આરોગ્ય શિક્ષણ)", "eng": "Health & Family Welfare Department (Health)"},
+    {"id": 4, "guj": "આરોગ્ય અને પરિવાર કલ્યાણ વિભાગ (જાહેર આરોગ્ય અને પરિવાર કલ્યાણ)", "eng": "Health & Family Welfare Department (Public Health & Family Welfare)"},
+    {"id": 5, "guj": "ઉદ્યોગ અને ખાણ વિભાગ", "eng": "Industries & Mines Department"},
+    {"id": 6, "guj": "ઉદ્યોગ અને ખાણ વિભાગ (કુટીર ઉદ્યોગ અને ગ્રામોદ્યોગ)", "eng": "Industries & Mines Department (Cottage & Rural Industries)"},
+    {"id": 7, "guj": "ઉદ્યોગ અને ખાણ વિભાગ (પ્રવાસન, યાત્રા પ્રવાસ, દેવસ્થાન સં.)", "eng": "Industries & Mines Department (Tourism, Pilgrimage, Devsthanam Management)"},
+    {"id": 8, "guj": "ઉર્જા અને પેટ્રો કેમિકલ્સ વિભાગ", "eng": "Energy & Petrochemicals Department"},
+    {"id": 9, "guj": "ક્લાઇમેટ ચેન્જ વિભાગ", "eng": "Climate change Department"},
+    {"id": 10, "guj": "કાયદા વિભાગ", "eng": "Legal Department"},
+    {"id": 11, "guj": "કૃષિ, ખેડૂત કલ્યાણ અને સહકાર વિભાગ", "eng": "Agriculture, Farmer Welfare & Co-operation Department"},
+    {"id": 12, "guj": "કૃષિ, ખેડૂત કલ્યાણ અને સહકાર વિભાગ (પશુપાલન, ગૌસંવર્ધન, મત્સ્યોદ્યોગ, સહકાર)", "eng": "Agriculture, Farmer Welfare & Co-operation Department (Animal Husbandry, Cow Breeding, Fisheries, Co-operation)"},
+    {"id": 13, "guj": "ગૃહ વિભાગ", "eng": "Home Department"},
+    {"id": 14, "guj": "નર્મદા, જળ સંપત્તિ, પાણી પુરવઠો અને કલ્પસર વિભાગ (પુન: વસવાટ)", "eng": "Narmada, Water Resourses, Water Supply & Kalpasar Department (Rehabilitation)"},
+    {"id": 15, "guj": "નર્મદા, જળ સંપત્તિ, પાણી પુરવઠો અને કલ્પસર વિભાગ (સિંચાઈ)", "eng": "Narmada, Water Resourses, Water Supply & Kalpasar Department (Irrigation)"},
+    {"id": 16, "guj": "નર્મદા, જળ સંપત્તિ, પાણી પુરવઠો અને કલ્પસર વિભાગ (નર્મદા)", "eng": "Narmada, Water Resourses, Water Supply & Kalpasar Department (Narmada)"},
+    {"id": 17, "guj": "નર્મદા, જળ સંપત્તિ, પાણી પુરવઠો અને કલ્પસર વિભાગ (પાણી પુરવઠા)", "eng": "Narmada, Water Resourses, Water Supply & Kalpasar Department (Water Supply)"},
+    {"id": 18, "guj": "નર્મદા, જળ સંપત્તિ, પાણી પુરવઠો અને કલ્પસર વિભાગ (કલ્પસર)", "eng": "Narmada, Water Resourses, Water Supply & Kalpasar Department (Kalpasar)"},
+    {"id": 19, "guj": "નાણાં વિભાગ", "eng": "Finance Department"},
+    {"id": 20, "guj": "નાણાં વિભાગ (આર્થિક બાબતો)", "eng": "Finance Department (Economical Affairs)"},
+    {"id": 21, "guj": "નાણાં વિભાગ (ખર્ચ)", "eng": "Finance Department (Expenses)"},
+    {"id": 22, "guj": "પંચાયત, ગ્રામ ગૃહનિર્માણ અને ગ્રામ વિકાસ વિભાગ", "eng": "Panchayat, Rural Housing & Rural Development Department"},
+    {"id": 23, "guj": "પંચાયત, ગ્રામ ગૃહનિર્માણ અને ગ્રામ વિકાસ વિભાગ (ગ્રામ વિકાસ)", "eng": "Panchayat, Rural Housing & Rural Development Department (Rural Development)"},
+    {"id": 24, "guj": "બંદરો અને વાહન વ્યવહાર વિભાગ", "eng": "Ports & Transport Department"},
+    {"id": 25, "guj": "બંદરો અને વાહન વ્યવહાર વિભાગ (વાહન વ્યવહાર)", "eng": "Ports & Transport Department (Transport)"},
+    {"id": 26, "guj": "બંદરો અને વાહન વ્યવહાર વિભાગ (બંદરો)", "eng": "Ports & Transport Department (Ports)"},
+    {"id": 27, "guj": "મહેસૂલ વિભાગ", "eng": "Revenue Department"},
+    {"id": 28, "guj": "મહિલા અને બાળ કલ્યાણ વિકાસ વિભાગ", "eng": "Women & Child Development Department"},
+    {"id": 29, "guj": "માર્ગ અને મકાન વિભાગ", "eng": "Road & Building Department"},
+    {"id": 30, "guj": "માહિતી અને પ્રસારણ વિભાગ", "eng": "Information & Broadcasting Department"},
+    {"id": 31, "guj": "રમતગમત, યુવા અને સાંસ્કૃતિક પ્રવૃત્તિ વિભાગ", "eng": "Sports, Youth & Cultural Activities Department"},
+    {"id": 32, "guj": "વન અને પર્યાવરણ વિભાગ", "eng": "Forest & Environment Department"},
+    {"id": 33, "guj": "વૈધાનિક અને સંસદીય બાબતોનો વિભાગ (વૈધાનિક અને સંસદીય બાબતો)", "eng": "Legislative & Parliamentary Affairs Department"},
+    {"id": 34, "guj": "વૈધાનિક અને સંસદીય બાબતોનો વિભાગ (વૈધાનિક બાબતો)", "eng": "Legislative & Parliamentary Affairs Department (Legislative Affairs)"},
+    {"id": 35, "guj": "વૈધાનિક અને સંસદીય બાબતોનો વિભાગ (સંસદીય બાબતો)", "eng": "Legislative & Parliamentary Affairs Department (Parliamentary Affairs)"},
+    {"id": 36, "guj": "ગુજરાત વિધાનસભા", "eng": "Legislative & Parliamentary Affairs Department (Gujarat Legislative Assembly)"},
+    {"id": 37, "guj": "વિજ્ઞાન અને પ્રૌદ્યોગિકી વિભાગ", "eng": "Science & Technology Department"},
+    {"id": 38, "guj": "સામાજિક ન્યાય અને અધિકારીતા વિભાગ", "eng": "Social Justice & Empowerment Department"},
+    {"id": 39, "guj": "શહેરી વિકાસ અને શહેરી ગૃહ નિર્માણ વિભાગ (શહેરી વિકાસ અને શહેરી હાઉસિંગ)", "eng": "Urban Development & Urban Housing Department"},
+    {"id": 40, "guj": "શહેરી વિકાસ અને શહેરી ગૃહ નિર્માણ વિભાગ (શહેરી ગૃહ નિર્માણ અને નિર્મળ ગુજરાત)", "eng": "Urban Development & Urban Housing Department (Housing)"},
+    {"id": 41, "guj": "શિક્ષણ વિભાગ (પ્રાથમિક અને માધ્યમિક શિક્ષણ)", "eng": "Education Department (Primary & Secondary Education)"},
+    {"id": 42, "guj": "શિક્ષણ વિભાગ (ઉચ્ચ અને ટેકનિકલ શિક્ષણ)", "eng": "Education Department (Higher & Technical Education)"},
+    {"id": 43, "guj": "શ્રમ અને રોજગાર વિભાગ", "eng": "Labour & Employment Department"},
+    {"id": 44, "guj": "સામાન્ય વહીવટ વિભાગ (ક.ગ.)", "eng": "General Administration Department (Personnel)"},
+    {"id": 45, "guj": "સામાન્ય વહીવટ વિભાગ (આયોજન)", "eng": "General Administration Department (Planning)"},
+    {"id": 46, "guj": "સામાન્ય વહીવટ વિભાગ (વ.સુ.તા.પ્ર. અને એન.આર.આઈ.)", "eng": "General Administration Department (A.R.T.D. and NRI)"},
+    {"id": 47, "guj": "સામાન્ય વહીવટ વિભાગ (ચૂંટણી)", "eng": "General Administration Department (Election)"},
+    {"id": 48, "guj": "મુખ્યમંત્રીશ્રીનું કાર્યાલય", "eng": "CMO"},
+    {"id": 49, "guj": "મુખ્ય સચિવશ્રીનું કાર્યાલય, ગુજરાત", "eng": "CS Office"}
+]
+
+PRABHAG_ENG_LIST = [item["eng"] for item in PRABHAG_DATA]
+
 def _call_vllm(prompt, json_mode=False, timeout=30):
     payload = {
         "model": MODEL_NAME,
@@ -76,13 +132,31 @@ def _clean_json_response(text):
         return match.group(1).strip()
     return text.strip()
 
+def _pick_prabhag(model_output: str):
+    cleaned = (model_output or "").strip()
+    norm_lower = cleaned.lower()
+
+    # Direct Matching
+    for item in PRABHAG_DATA:
+        if norm_lower == item["eng"].lower():
+            return item
+    
+    # Fuzzy Matching
+    matches = get_close_matches(norm_lower, [d.lower() for d in PRABHAG_ENG_LIST], n=1, cutoff=0.6)
+    if matches:
+        for item in PRABHAG_DATA:
+            if item["eng"].lower() == matches[0]:
+                return item
+    
+    return PRABHAG_DATA[0] # Default fallback
+
 def analyze_english_text_with_llm(text):
     """
     Input: English text (string)
-    Output: (gujarati_category_string, is_govt_boolean, confidence_score, sentiment_string)
+    Output: (gujarati_category_string, is_govt_boolean, confidence_score, sentiment_string, prabhag_name, prabhag_id)
     """
     if not text or not text.strip():
-        return "અન્ય", False, 0, "Neutral"
+        return "અન્ય", False, 0, "Neutral", None, None
 
     # --- 1. Check Government Relevance (JSON Mode) ---
     prompt_govt = (
@@ -179,4 +253,33 @@ def analyze_english_text_with_llm(text):
     except Exception as e:
         print(f"⚠️ vLLM Sentiment Error: {e}")
     
-    return guj_category, is_govt_bool, confidence, sentiment_str
+    # --- 4. Check Prabhag (New) ---
+    prabhag_name = None
+    prabhag_id = None
+    
+    prabhag_list_str = "\n".join(PRABHAG_ENG_LIST)
+    prompt_prabhag = (
+        f"You are a strict Gujarat Government expert text classifier. Classify the given English text into ONE department from the list.\n"
+        f"INSTRUCTIONS:\n"
+        f"- Respond with ONLY the English department name from the list.\n"
+        f"- Do not add explanations or IDs in your text output.\n"
+        f"- Strictly do not give output in any other language eg. Chinese.\n"
+        f"- If keywords like \"municipality\" or \"corporation\" are found, use \"Urban Development & Urban Housing Department\".\n\n"
+        f"AVAILABLE DEPARTMENTS:\n"
+        f"{prabhag_list_str}\n\n"
+        f"NOW CLASSIFY THIS TEXT:\n"
+        f"{text}\n\n"
+        f"YOUR ANSWER:"
+    )
+    
+    try:
+        resp_prabhag = _call_vllm(prompt_prabhag, json_mode=False)
+        picked_prabhag = _pick_prabhag(resp_prabhag)
+
+        if picked_prabhag:
+            prabhag_name = picked_prabhag["eng"]
+            prabhag_id = picked_prabhag["id"]
+    except Exception as e:
+        print(f"⚠️ Prabhag Classification Error: {e}")
+
+    return guj_category, is_govt_bool, confidence, sentiment_str, prabhag_name, prabhag_id

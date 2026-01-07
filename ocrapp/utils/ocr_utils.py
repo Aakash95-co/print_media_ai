@@ -391,8 +391,12 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 eng_text = translate_text(gujarati_only)
 
                 # --- LLM OBSERVATION START ---
-                cate_llm, is_govt_llm, conf_llm, sentiment_llm = analyze_english_text_with_llm(eng_text)
-                print(f"🔍 LLM Observation -> Category: {cate_llm}, Is_Govt: {is_govt_llm}, Conf: {conf_llm}%")
+                cate_llm, is_govt_llm, conf_llm, sentiment_llm, prabhag_llm, prabhag_id_llm = analyze_english_text_with_llm(eng_text)
+                
+                # Derive cat_id_llm using mapping
+                cat_id_llm = GovtInfo.govt_cat_id_mapping.get(cate_llm, None)
+
+                print(f"🔍 LLM Observation -> Category: {cate_llm} (ID: {cat_id_llm}), Is_Govt: {is_govt_llm}, Conf: {conf_llm}%, Prabhag: {prabhag_llm}, ID: {prabhag_id_llm}")
                 # --- LLM OBSERVATION END ---
 
                 # --- sentiment ---
@@ -617,8 +621,8 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     distict_word = taluka,
                     Dcode = dcode,
                     Tcode = tcode ,
-                    prabhag = prabhag_name,
-                    prabhag_ID = prabhag_ID,
+                    prabhag = prabhag_llm,
+                    prabhag_ID = prabhag_id_llm,
                     is_govt_push_nic = is_govt_push_nic,
                     remarks = article_remarks,
                     is_manual = is_manual,
