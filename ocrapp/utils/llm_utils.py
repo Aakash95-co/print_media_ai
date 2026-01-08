@@ -29,7 +29,7 @@ GUJ_TO_ENG = {
     "કૌભાંડ / ભ્રષ્ટાચાર": "Corruption / Scam", "ગેરકાયદેસર ખનન": "Illegal mining",
     "કર્મચારીઓ અંગે": "Employees related", "નીતિ અમલીકરણ લગત": "Policy implementation related",
     "બેરોજગારી/આર્થિક સમસ્યા": "Unemployment/economic issues", "પ્રદૂષણ": "Pollution",
-    "સ્ટ્રીટ લાઈટને લગત": "Street light related", "ફૂડ/વોટર સેફ્ટી બાબતે": "Food/water safety related",
+    "સ્ટ્રીટ લાઈટને લગત": "Street light related", "ફૂડ/પીવાના પાણી સંબંધિત": "Food/drinking water related",
     "રોડ-રસ્તા લગત": "Roads/streets related", "પુલ/બ્રિજ બાબત": "Bridge related",
     "ઇન્ફ્રાસ્ટ્રક્ચર બાબત": "Infrastructure related", "ગેરકાયદેસર કામગીરી": "Illegal activities",
     "કૃષિ સંસાધન લગત": "Agricultural resources related", "બાગાયતી": "Horticulture",
@@ -39,17 +39,17 @@ GUJ_TO_ENG = {
     "ગેસની પાઈપ લાઈનના મરામત અંગેના પ્રશ્નો": "Gas pipeline repair issues", "ટ્રાન્સપોર્ટ સુવિધાને લગત પ્રશ્નો": "Transport facility issues",
     "પાણી ભરાવવાના પ્રશ્ન": "Waterlogging issues", "પાણીને લગતા પ્રશ્ન (પાણીની અછત, ગંદુ પાણી, વગેરે)": "Water-related issues (shortage, dirty water, etc.)",
     "મજૂરોના શોષણ બાબત ફરિયાદ": "Complaints about labor exploitation", "મહેકમ બાબત": "Department related",
-    "વેરો વસૂલવા અંગે": "Tax collection related", "શહેરી ઇન્ફ્રાસ્ટ્રક્ચરને લગતા પ્રશ્ન": "Urban infrastructure issues",
-}
+    "વેરો વસૂલવા અંગે": "Tax collection related", "શહેરી ઇન્ફ્રાસ્ટ્રક્ચરને લગતા પ્રશ્ન": "Urban infrastructure issues","જાહેર આરોગ્ય": "Public health related",
+    "ચોરી બાબત": "Theft related", "શિક્ષણ વિષયક": "Education related"  }
 
 ENGLISH_CATEGORIES = list(GUJ_TO_ENG.values())
 ENG_TO_GUJ = {eng: guj for guj, eng in GUJ_TO_ENG.items()}
 
-# --- PRABHAG DATA (Added) ---
+# --- UPDATED CONFIGURATION: PRABHAG DATA FROM IMAGE (IDs 1-49) ---
 PRABHAG_DATA = [
     {"id": 1, "guj": "અન્ન નાગરિક પુરવઠો અને ગ્રાહક બાબતોનો વિભાગ", "eng": "Food, Civil Supplies & Consumer Affairs Department"},
     {"id": 2, "guj": "આદિજાતિ વિકાસ વિભાગ", "eng": "Tribal Development Department"},
-    {"id": 3, "id_img": 3, "guj": "આરોગ્ય અને પરિવાર કલ્યાણ વિભાગ (આરોગ્ય શિક્ષણ)", "eng": "Health & Family Welfare Department (Health)"},
+    {"id": 3, "guj": "આરોગ્ય અને પરિવાર કલ્યાણ વિભાગ (આરોગ્ય શિક્ષણ)", "eng": "Health & Family Welfare Department (Health)"},
     {"id": 4, "guj": "આરોગ્ય અને પરિવાર કલ્યાણ વિભાગ (જાહેર આરોગ્ય અને પરિવાર કલ્યાણ)", "eng": "Health & Family Welfare Department (Public Health & Family Welfare)"},
     {"id": 5, "guj": "ઉદ્યોગ અને ખાણ વિભાગ", "eng": "Industries & Mines Department"},
     {"id": 6, "guj": "ઉદ્યોગ અને ખાણ વિભાગ (કુટીર ઉદ્યોગ અને ગ્રામોદ્યોગ)", "eng": "Industries & Mines Department (Cottage & Rural Industries)"},
@@ -253,23 +253,62 @@ def analyze_english_text_with_llm(text):
     except Exception as e:
         print(f"⚠️ vLLM Sentiment Error: {e}")
     
-    # --- 4. Check Prabhag (New) ---
+    # --- 4. Check Prabhag (New Prompt with Hints) ---
     prabhag_name = None
     prabhag_id = None
     
-    prabhag_list_str = "\n".join(PRABHAG_ENG_LIST)
+    numbered_depts = "\n".join([f"{i+1}. {dept}" for i, dept in enumerate(PRABHAG_ENG_LIST)])
+
     prompt_prabhag = (
-        f"You are a strict Gujarat Government expert text classifier. Classify the given English text into ONE department from the list.\n"
-        f"INSTRUCTIONS:\n"
-        f"- Respond with ONLY the English department name from the list.\n"
-        f"- Do not add explanations or IDs in your text output.\n"
-        f"- Strictly do not give output in any other language eg. Chinese.\n"
-        f"- If keywords like \"municipality\" or \"corporation\" are found, use \"Urban Development & Urban Housing Department\".\n\n"
-        f"AVAILABLE DEPARTMENTS:\n"
-        f"{prabhag_list_str}\n\n"
-        f"NOW CLASSIFY THIS TEXT:\n"
-        f"{text}\n\n"
-        f"YOUR ANSWER:"
+        f"TASK: You are a Gujarat Government department classifier. Your job is to classify the given text to exactly ONE department from the numbered list below.\n\n"
+        f"STRICT OUTPUT RULES:\n"
+        f"1. Output ONLY the exact department name from the list - nothing else\n"
+        f"2. Copy the department name character-by-character exactly as written\n"
+        f"3. NO explanations, NO reasoning, NO additional text\n"
+        f"4. NO department numbers or IDs in output\n"
+        f"5. Output must be in English only\n"
+        f"6. Do NOT translate or modify the department name\n"
+        f"7. Output on a single line only\n\n"
+        f"DEPARTMENT CLASSIFICATION HINTS:\n"
+        f"- Police, crime, security, law & order → Home Department\n"
+        f"- Schools, primary education → Education Department (Primary & Secondary Education)\n"
+        f"- Colleges, universities, technical → Education Department (Higher & Technical Education)\n"
+        f"- Farmers, crops, agriculture → Agriculture, Farmer Welfare & Co-operation Department\n"
+        f"- Cattle, dairy, fishing → Agriculture, Farmer Welfare & Co-operation Department (Animal Husbandry, Cow Breeding, Fisheries, Co-operation)\n"
+        f"- Roads, bridges, causeway → Road & Building Department\n"
+        f"- Electricity, power, petroleum → Energy & Petrochemicals Department\n"
+        f"- Water supply → Narmada, Water Resourses, Water Supply & Kalpasar Department (Water Supply)\n"
+        f"- Irrigation, canals → Narmada, Water Resourses, Water Supply & Kalpasar Department (Irrigation)\n"
+        f"- Dams, Narmada river → Narmada, Water Resourses, Water Supply & Kalpasar Department (Narmada)\n"
+        f"- Women, children, ICDS, anganwadi → Women & Child Development Department\n"
+        f"- Hospitals, doctors, medical → Health & Family Welfare Department (Public Health & Family Welfare)\n"
+        f"- Medical education, nursing → Health & Family Welfare Department (Health)\n"
+        f"- Budget, finance, taxation → Finance Department\n"
+        f"- Village, panchayat, gram sabha → Panchayat, Rural Housing & Rural Development Department\n"
+        f"- City, municipality, urban → Urban Development & Urban Housing Department\n"
+        f"- Forests, wildlife → Forest & Environment Department\n"
+        f"- Industries, factories, manufacturing, GIDC → Industries & Mines Department\n"
+        f"- Tourism, pilgrimage, temples → Industries & Mines Department (Tourism, Pilgrimage, Devsthanam Management)\n"
+        f"- Ports, ships, maritime → Ports & Transport Department (Ports)\n"
+        f"- Vehicles, RTO, transport → Ports & Transport Department (Transport)\n"
+        f"- Sports, youth, culture → Sports, Youth & Cultural Activities Department\n"
+        f"- Land revenue, collector → Revenue Department\n"
+        f"- Ration, PDS, consumer → Food, Civil Supplies & Consumer Affairs Department\n"
+        f"- Labour, workers, employment → Labour & Employment Department\n"
+        f"- SC/ST welfare, disabled → Social Justice & Empowerment Department\n"
+        f"- Chief Minister related → CMO\n"
+        f"- Chief Secretary related → CS Office\n"
+        f"- Media, press, broadcasting → Information & Broadcasting Department\n"
+        f"- Climate, carbon, green initiatives → Climate change Department\n"
+        f"- Assembly, legislature → Legislative & Parliamentary Affairs Department\n"
+        f"- Election, voting, transfer → General Administration Department (Election)\n"
+        f"- Science, research, technology → Science & Technology Department\n"
+        f"- Legal, courts, judiciary → Legal Department\n\n"
+        f"NUMBERED DEPARTMENT LIST:\n"
+        f"{numbered_depts}\n\n"
+        f"TEXT TO CLASSIFY:\n"
+        f"\"\"\"{text}\"\"\"\n\n"
+        f"DEPARTMENT NAME:"
     )
     
     try:

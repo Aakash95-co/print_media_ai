@@ -493,6 +493,31 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(clean_title)
                 #### district strings #####
 
+                # --- Mandvi Disambiguation (Kutch vs Surat) ---
+                SOUTH_GUJARAT_PAPERS = {
+                    "Bharuch-Narmada Bhaskar", "Gujarat Mitra (Bardoli-Vyara-Bharuch)",
+                    "Gujarat Mitra (Navsari-Valsad-Vapi)", "Gujarat Mitra (Surat)",
+                    "Janadesh (Surat)", "Loksatta Jansatta (Surat)", "Navsari Bhaskar",
+                    "Sandesh (Surat)", "Sandesh (Surat-Tapi)", "Soneri Surat",
+                    "Surat City Bhaskar", "Surat Mitra", "Valsad-Vapi Bhaskar",
+                    "Sandesh (Navsari-Dang)"
+                }
+                
+                # If detected successfully as Mandvi, check if we need to force it to Surat
+                if taluka == "માંડવી":
+                    current_paper_name = news_paper.strip()
+                    # Check if paper name matches any in the list (case-insensitive if needed, but exact match preferred for keys)
+                    # The user provided list seems to be exact names.
+                    if any(p.lower() in current_paper_name.lower() for p in SOUTH_GUJARAT_PAPERS):
+                        district = "સુરત"
+                        dcode = 22
+                        tcode = "22007" # Surat-Mandvi code
+                        string_type += "_MandviFix"
+                        print(f"📍 Mandvi Disambiguation: Forcing to Surat for paper '{current_paper_name}'")
+                    # Else it remains Kutch (default from mapping likely 01008 if it was picked first, or whatever detect_district found)
+                    # Note: detect_district_rapidfuzz usually returns the first match. 
+                    # If Kutch Mandvi comes first in map, it returns Kutch.
+                
                 prabhag_name, prabhag_ID, confidence = PRABHAG_PREDICTOR.predict(eng_text)
                 print(f"{is_govt, govt_word, category, cat_word, district, taluka, cat_id, dcode, tcode, prabhag_name, prabhag_ID} --- model_pred: {model_pred} ")
                 
