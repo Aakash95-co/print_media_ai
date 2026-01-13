@@ -13,6 +13,7 @@ import time
 import requests
 import joblib
 from datetime import datetime
+#from pcat_idathlib import Path
 from pathlib import Path
 from dotenv import load_dotenv
 from PIL import Image, ImageOps, ImageFilter
@@ -637,7 +638,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     article_type="Unknown",
                     article_category=  cate_llm if cate_llm else "NA" ,
                     category_word = cat_word if cat_word else "NA",
-                    cat_Id = cat_id,
+                    cat_Id = cat_id_llm,
                     is_govt = is_govt ,
                     govt_word = govt_word,
                     govt_word_rule_based = is_govt_rule_based,
@@ -678,7 +679,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                             article.Tcode or "",                                   # 13 -> @Tcode VARCHAR(50)
                             article.cat_Id or None,                                # 14 -> @Cat_code INT
                             article.article_type or "",                            # 15 -> @Title NVARCHAR(500)
-                            0 ,                                                    # 16 - prabhagID
+                            article.prabhag_ID,                                                    # 16 - prabhagID
                             article.id,                                            # 17 - AI_ID INT
                             1 if article.is_urgent else 0,                         # 18 - @Is_Urgent INT (1/0)
                             1 if article.is_duplicate else 0,                      # 19 - @Is_Duplicate INT (1/0)
