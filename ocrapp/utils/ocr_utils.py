@@ -494,7 +494,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(clean_title)
                 #### district strings #####
 
-                # --- Mandvi Disambiguation (Kutch vs Surat) ---
+                # --- Disambiguation Logic (Jetpur, Mandvi, Mangrol, Mahuva) ---
                 SOUTH_GUJARAT_PAPERS = {
                     "Bharuch-Narmada Bhaskar", "Gujarat Mitra (Bardoli-Vyara-Bharuch)",
                     "Gujarat Mitra (Navsari-Valsad-Vapi)", "Gujarat Mitra (Surat)",
@@ -504,20 +504,60 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     "Sandesh (Navsari-Dang)"
                 }
                 
-                # If detected successfully as Mandvi, check if we need to force it to Surat
+                SAURASHTRA_PAPERS = {
+                    "Akila (Rajkot)", "Akila (Saurashtra)", "Amreli Bhaskar", "Amreli Express",
+                    "Botad Samachar", "Divya Bhaskar (Rajkot)", "Gujarat Samachar (Bhavnagar)",
+                    "Gujarat Samachar (Rajkot)", "Gujarat Samachar (Surendranagar)",
+                    "Jamnagar Bhaskar", "Jamnagar Morning", "Jamnagar Uday", "Khas Khabar (Rajkot)",
+                    "Phulchhab (Rajkot)", "Porbandar Khabar", "Porbandar-Sorath Bhaskar",
+                    "Rajkot Halchal", "Rajkot Sandesh Evening Daily", "Sandesh (Bhavnagar)",
+                    "Sandesh (Halar)", "Sandesh (Morbi)", "Sandesh (Rajkot)",
+                    "Sandesh (Saurashtra)", "Sandesh (Zalawad-Ahmedadad)",
+                    "Sanj Samachar (Rajkot)", "Sanj Samachar (Saurashtra)", "Soneri Surat",
+                    "Surendranagar Bhaskar", "Divya Bhaskar (Bhavnagar)", "Rajkot Mirror",
+                    "Saurashtra Aaj Tak", "Saurashtra Headline", "Hatavo Brashtachar", "Halar Update"
+                }
+
+                current_paper_name = news_paper.strip() if news_paper else ""
+                is_south_paper = any(p.lower() in current_paper_name.lower() for p in SOUTH_GUJARAT_PAPERS)
+                is_saurashtra_paper = any(p.lower() in current_paper_name.lower() for p in SAURASHTRA_PAPERS)
+
+                # 1. Jetpur (Rajkot vs Chhota Udepur)
+                if taluka == "જેતપુર":
+                    if is_saurashtra_paper:
+                        district = "રાજકોટ"
+                        dcode = 9
+                        tcode = "09020" # Jetpur City
+                        string_type += "_JetpurRajkotFix"
+                        print(f"📍 Jetpur Disambiguation: Forcing to Rajkot for paper '{current_paper_name}'")
+
+                # 2. Mandvi (Kutch vs Surat)
                 if taluka == "માંડવી":
-                    current_paper_name = news_paper.strip()
-                    # Check if paper name matches any in the list (case-insensitive if needed, but exact match preferred for keys)
-                    # The user provided list seems to be exact names.
-                    if any(p.lower() in current_paper_name.lower() for p in SOUTH_GUJARAT_PAPERS):
+                    if is_south_paper:
                         district = "સુરત"
                         dcode = 22
-                        tcode = "22007" # Surat-Mandvi code
-                        string_type += "_MandviFix"
+                        tcode = "22007" # Surat-Mandvi
+                        string_type += "_MandviSuratFix"
                         print(f"📍 Mandvi Disambiguation: Forcing to Surat for paper '{current_paper_name}'")
-                    # Else it remains Kutch (default from mapping likely 01008 if it was picked first, or whatever detect_district found)
-                    # Note: detect_district_rapidfuzz usually returns the first match. 
-                    # If Kutch Mandvi comes first in map, it returns Kutch.
+
+                # 3. Mangrol (Junagadh vs Surat)
+                if taluka in ["માંગરોળ", "માંગરોલ"]:
+                    if is_south_paper:
+                        district = "સુરત"
+                        dcode = 22
+                        tcode = "22002" # Surat-Mangrol (Code for Mangrol in Surat)
+                        string_type += "_MangrolSuratFix"
+                        print(f"📍 Mangrol Disambiguation: Forcing to Surat for paper '{current_paper_name}'")
+
+                # 4. Mahuva (Bhavnagar vs Surat)
+                if taluka == "મહુવા":
+                    if is_south_paper:
+                        district = "સુરત"
+                        dcode = 22
+                        tcode = "22015" # Surat-Mahuva
+                        string_type += "_MahuvaSuratFix"
+                        print(f"📍 Mahuva Disambiguation: Forcing to Surat for paper '{current_paper_name}'")
+
                 
                 prabhag_name, prabhag_ID, confidence = PRABHAG_PREDICTOR.predict(eng_text)
                 print(f"{is_govt, govt_word, category, cat_word, district, taluka, cat_id, dcode, tcode, prabhag_name, prabhag_ID} --- model_pred: {model_pred} ")
