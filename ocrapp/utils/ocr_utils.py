@@ -13,12 +13,12 @@ import time
 import requests
 import joblib
 from datetime import datetime
-#from pcat_idathlib import Path
 from pathlib import Path
 from dotenv import load_dotenv
 from PIL import Image, ImageOps, ImageFilter
 from django.conf import settings
 from pgvector.django import L2Distance
+from openai import OpenAI  # <--- Added Import
 
 # --- Model Imports ---
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
@@ -63,6 +63,17 @@ PRABHAG_PREDICTOR = None
 # Threshold for L2 Distance (Lower = Stricter/More Similar)
 # 0.50 L2 Distance is approximately 87% Cosine Similarity
 DUPLICATE_THRESHOLD_L2 = 0.50 
+
+# --- SIMILARITY LLM CONFIG ---
+LLM_BASE_URL = "http://localhost:8100/v1"
+LLM_API_KEY = "EMPTY"
+SIMILARITY_MODEL_NAME = "./qwen-7b-awq"
+
+try:
+    LLM_CLIENT = OpenAI(base_url=LLM_BASE_URL, api_key=LLM_API_KEY)
+except Exception as e:
+    print(f"⚠️ Warning: OpenAI Client Init Failed: {e}")
+    LLM_CLIENT = None
 
 # ==============================================================================
 # 2. LAZY LOADING FUNCTION (Called inside the worker process)
@@ -146,6 +157,48 @@ STOPWORDS = {
 }
 custom_config = r"--oem 3 --psm 6 -l guj"
 title_config = r"--oem 3 --psm 7 -l guj"
+
+def check_similarity_with_llm(text1, text2):
+    """
+    Sends two texts to the LLM and asks if they are strictly similar.
+    Returns True if Similar, False otherwise.
+    """
+    if not LLM_CLIENT:
+        return False
+
+    # Truncate text to avoid token limits and speed up processing
+    t1_safe = str(text1)[:1000]
+    t2_safe = str(text2)[:1000]
+
+    prompt = f"""
+    Compare the following two news article texts. 
+    Do they refer to the exact same specific event or story?
+
+    TEXT 1: {t1_safe}
+
+    TEXT 2: {t2_safe}
+
+    Answer only with the word "YES" if they are the same event, or "NO" if they are different.
+    """
+
+    try:
+        response = LLM_CLIENT.chat.completions.create(
+            model=SIMILARITY_MODEL_NAME,
+            messages=[
+                {"role": "system",
+                 "content": "You are a helpful assistant that compares news articles. You only answer YES or NO."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.1,  # Low temperature for consistent deterministic answers
+            max_tokens=10
+        )
+        content = response.choices[0].message.content.strip().upper()
+
+        # Check if YES is in the response (handles cases like "YES." or "Yes, similar")
+        return "YES" in content
+    except Exception as e:
+        print(f"⚠️ Similarity LLM Error: {e}")
+        return False
 
 def page_to_bgr(page, scale=2.0):
     mat = fitz.Matrix(scale, scale)
@@ -635,14 +688,44 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 if article_type_pred == "article" and model_pred == 1  and sentiment_label in ["negative"] \
                     and is_govt_llm == True and district not in [None, "Unknown"] and sentiment_llm == "Negative" and is_duplicate == False :
 
-                    is_govt_push_nic = True
-                
+                    # --- CHECK FOR SEMANTIC SIMILARITY ---
+                    is_similar = False
+                    similar_rec_id = None
+                    try:
+                        # Fetch candidates: Same District, Same Day
+                        # We only care about checking against potential existing Govt News
+                        candidates = ArticleInfo.objects.filter(
+                            created_at__date=datetime.now().date(),
+                            district=district
+                        ).exclude(translated_text__isnull=True).exclude(translated_text__exact="")
+
+                        # OPTIONAL: Limit candidates to recent ones or specific count if performance is issue
+                        # candidates = candidates.order_by('-id')[:20]
+
+                        for cand in candidates:
+                            # Use LLM to check similarity
+                            if check_similarity_with_llm(cand.translated_text, eng_text):
+                                is_similar = True
+                                similar_rec_id = cand.id
+                                print(f"🔍 Semantic Similarity Found with ID: {cand.id} - Skipping NIC Push")
+                                break
+                    except Exception as e:
+                        print(f"⚠️ Similarity Check Process Error: {e}")
+
+                    if is_similar:
+                        is_govt_push_nic = False
+                        article_remarks += f", Similar_to_ID={similar_rec_id}"
+                    else:
+                        is_govt_push_nic = True
+                    
+
                 is_manual = False
                 if is_article:
                     is_manual = True
                     # Manual article: Strictly get district from dcode only
                     try:
                         if article_district:
+                            is_govt_push_nic = True
                             # Convert input to int (dcode)
                             d_id = int(article_district)
                             
