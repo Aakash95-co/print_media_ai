@@ -22,6 +22,7 @@ def ocr_upload_view(request):
         district_param = request.data.get("district_param", None)
         is_connect = request.data.get("is_connect", False)
         is_urgent = request.data.get("is_urgent", False)
+        uuid = request.data.get("uuid", False)
         if not file:
             return Response({"error": "No PDF uploaded"}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -71,7 +72,8 @@ def ocr_upload_view(request):
             is_article=is_article,
             article_district=district_param,
             is_connect=is_connect, 
-            is_urgent=is_urgent
+            is_urgent=is_urgent,
+            uuid=uuid
         )
         
         # Return immediate response

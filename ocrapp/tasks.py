@@ -2,7 +2,7 @@ from celery import shared_task
 from .utils.ocr_utils import process_pdf
 
 @shared_task(bind=True)
-def process_pdf_task(self, pdf_path, news_paper, pdf_link, lang, is_article, article_district, is_connect, is_urgent):
+def process_pdf_task(self, pdf_path, news_paper, pdf_link, lang, is_article, article_district, is_connect, is_urgent, uuid):
     try:
         # This runs on the GPU worker
         print(f"Started processing: {pdf_path}")
@@ -14,7 +14,8 @@ def process_pdf_task(self, pdf_path, news_paper, pdf_link, lang, is_article, art
             is_article=is_article,
             article_district=article_district,
             is_connect=is_connect,
-            is_urgent=is_urgent
+            is_urgent=is_urgent,
+            uuid=uuid
         )
         return "Success"
     except Exception as e:

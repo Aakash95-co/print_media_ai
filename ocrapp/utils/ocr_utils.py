@@ -347,7 +347,7 @@ def _normalize_blocks(blocks, article_height):
 # ==============================================================================
 # 4. MAIN PROCESS FUNCTION
 # ==============================================================================
-def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=False, article_district=None, is_connect=False, is_urgent=False):
+def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=False, article_district=None, is_connect=False, is_urgent=False, uuid=False):
     
     # 🔥 CRITICAL: Load models ONLY when the task starts
     load_models_if_needed()
@@ -746,6 +746,8 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     # keep is_urgent as passed (you can force if desired)
                     # is_urgent = True  # optional: force urgent for manual articles
 
+                if uuid:
+                    uuid = int(uuid)
 
                 article = ArticleInfo.objects.create(
                     pdf_name=final_newspaper_name if final_newspaper_name else "NA",
@@ -781,8 +783,9 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     is_govt_llm_confidence = conf_llm ,
                     embedding = vec, # Save vector to DB
                     is_urgent = is_urgent,
+                    extra_flag_text = uuid if uuid else 0 
+                    
                 )
-                
                 print(article.image)
                 if is_govt_push_nic:
                     #insert_news_analysis_entry(article)
@@ -802,11 +805,12 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                             article.Tcode or "",                                   # 13 -> @Tcode VARCHAR(50)
                             article.cat_Id or None,                                # 14 -> @Cat_code INT
                             article.article_type or "",                            # 15 -> @Title NVARCHAR(500)
-                            article.prabhag_ID,                                                    # 16 - prabhagID
+                            article.prabhag_ID,                                    # 16 - prabhagID
                             article.id,                                            # 17 - AI_ID INT
                             1 if article.is_urgent else 0,                         # 18 - @Is_Urgent INT (1/0)
                             1 if article.is_duplicate else 0,                      # 19 - @Is_Duplicate INT (1/0)
-                            article.duplicate_id if article.duplicate_id else 0    # 20 - @Duplicate_AI_ID INT
+                            article.duplicate_id if article.duplicate_id else 0 ,  # 20 - @Duplicate_AI_ID INT
+                            uuid if uuid else 0 ,                                  # 21 - @UUID INT
                     )
 
                     # --------------------------------------------
