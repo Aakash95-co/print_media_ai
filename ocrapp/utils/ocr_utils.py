@@ -720,12 +720,14 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     
 
                 is_manual = False
+                uploadType = 'newspaper'
                 if is_article:
                     is_manual = True
                     # Manual article: Strictly get district from dcode only
                     try:
                         if article_district:
                             is_govt_push_nic = True
+                            uploadType = 'article'
                             # Convert input to int (dcode)
                             d_id = int(article_district)
                             
@@ -811,6 +813,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                             1 if article.is_duplicate else 0,                      # 19 - @Is_Duplicate INT (1/0)
                             article.duplicate_id if article.duplicate_id else 0 ,  # 20 - @Duplicate_AI_ID INT
                             uuid if uuid else 0 ,                                  # 21 - @UUID INT
+                            uploadType                                            # 22 - @UploadType NVARCHAR(50)
                     )
 
                     # --------------------------------------------

@@ -36,7 +36,9 @@ def insert_news_analysis_entry(article_info_insert):
                 @AI_ID = ?,              -- 17
                 @Is_Urgent = ?,          -- 18 (NEW)
                 @Is_Duplicate = ?,       -- 19 (NEW)
-                @Duplicate_AI_ID = ?     -- 20 (NEW)
+                @Duplicate_AI_ID = ?,    -- 20 (NEW)
+                @uuid  = ?,              -- 21 (NEW)      
+                @UploadType = ?          -- 22 (NEW)
         """, article_info_insert)
 
         conn.commit()
