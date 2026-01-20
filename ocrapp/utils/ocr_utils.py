@@ -685,11 +685,11 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                         print(f"⚠️ Embedding/Duplicate Check Error: {e}")
 
                 is_govt_push_nic = False
+                is_similar = False
                 if article_type_pred == "article" and model_pred == 1  and sentiment_label in ["negative"] \
                     and is_govt_llm == True and district not in [None, "Unknown"] and sentiment_llm == "Negative" and is_duplicate == False :
 
-                    # --- CHECK FOR SEMANTIC SIMILARITY ---
-                    is_similar = False
+                    # --- CHECK FOR SEMANTIC SIMILARITY --- 
                     similar_rec_id = None
                     try:
                         # Fetch candidates: Same District, Same Day
@@ -785,8 +785,10 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     is_govt_llm_confidence = conf_llm ,
                     embedding = vec, # Save vector to DB
                     is_urgent = is_urgent,
-                    extra_flag_text = uuid if uuid else 0 
-                    
+                    extra_flag_text = uuid if uuid else 0, 
+                    is_sentiment_llm = sentiment_llm, 
+                    article_type_pred = article_type_pred,
+                    is_similar = is_similar
                 )
                 print(article.image)
                 if is_govt_push_nic:
