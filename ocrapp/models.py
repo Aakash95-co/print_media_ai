@@ -46,6 +46,7 @@ class ArticleInfo(models.Model):
     extra_flag_confidence = models.FloatField(null=True, blank=True)
     article_type_pred = models.CharField(max_length=100, blank=True, null=True)
     is_sentiment_llm = models.CharField(max_length=100, blank=True, null=True)
+    NewsPaper_UploadDate = models.CharField(max_length=100, blank=True, null=True)
 
     def __str__(self):
         return f"{self.pdf_name} - {self.article_id}"

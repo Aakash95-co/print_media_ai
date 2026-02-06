@@ -347,7 +347,7 @@ def _normalize_blocks(blocks, article_height):
 # ==============================================================================
 # 4. MAIN PROCESS FUNCTION
 # ==============================================================================
-def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=False, article_district=None, is_connect=False, is_urgent=False, uuid=False):
+def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=False, article_district=None, is_connect=False, is_urgent=False, uuid=False, NewsPaper_UploadDate=""):
     
     # 🔥 CRITICAL: Load models ONLY when the task starts
     load_models_if_needed()
@@ -788,7 +788,8 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     extra_flag_text = uuid if uuid else 0, 
                     is_sentiment_llm = sentiment_llm, 
                     article_type_pred = article_type_pred,
-                    is_similar = is_similar
+                    is_similar = is_similar,
+                    NewsPaper_UploadDate = NewsPaper_UploadDate
                 )
                 print(article.image)
                 if is_govt_push_nic:
@@ -815,7 +816,8 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                             1 if article.is_duplicate else 0,                      # 19 - @Is_Duplicate INT (1/0)
                             article.duplicate_id if article.duplicate_id else 0 ,  # 20 - @Duplicate_AI_ID INT
                             uuid if uuid else 0 ,                                  # 21 - @UUID INT
-                            uploadType                                            # 22 - @UploadType NVARCHAR(50)
+                            uploadType,                                            # 22 - @UploadType NVARCHAR(50)
+                            NewsPaper_UploadDate
                     )
 
                     # --------------------------------------------

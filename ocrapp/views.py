@@ -9,6 +9,14 @@ from django.conf import settings
 import os
 from datetime import datetime
 from .tasks import process_pdf_task  # <--- IMPORT THE TASK, NOT THE UTIL
+from django.utils.dateparse import parse_date
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.utils.dateparse import parse_date
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from .models import ArticleInfo
+
 
 
 @csrf_exempt
@@ -23,6 +31,7 @@ def ocr_upload_view(request):
         is_connect = request.data.get("is_connect", False)
         is_urgent = request.data.get("is_urgent", False)
         uuid = request.data.get("uuid", False)
+        NewsPaper_UploadDate = request.data.get("NewsPaper_UploadDate", False)
         if not file:
             return Response({"error": "No PDF uploaded"}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -73,7 +82,8 @@ def ocr_upload_view(request):
             article_district=district_param,
             is_connect=is_connect, 
             is_urgent=is_urgent,
-            uuid=uuid
+            uuid=uuid,
+            NewsPaper_UploadDate = NewsPaper_UploadDate
         )
         
         # Return immediate response
@@ -82,30 +92,68 @@ def ocr_upload_view(request):
     return Response({"error": "Method not allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from django.utils.dateparse import parse_date
+# class ArticleListView(APIView):
+#     def get(self, request):
+#         qs = ArticleInfo.objects.all().order_by("-created_at")
+#
+#         # Query Params
+#         from_date = request.GET.get("from_date")   # yyyy-mm-dd
+#         to_date = request.GET.get("to_date")       # yyyy-mm-dd
+#         district = request.GET.get("district")
+#         prabhag = request.GET.get("prabhag")
+#         article_category = request.GET.get("article_category")
+#         sentiment = request.GET.get("sentiment")
+#
+#         # Date Range Filter (using created_at)
+#         if from_date:
+#             qs = qs.filter(created_at__date__gte=parse_date(from_date))
+#
+#         if to_date:
+#             qs = qs.filter(created_at__date__lte=parse_date(to_date))
+#
+#         # Other Filters
+#         if district:
+#             qs = qs.filter(district__iexact=district)
+#
+#         if prabhag:
+#             qs = qs.filter(prabhag__iexact=prabhag)
+#
+#         if article_category:
+#             qs = qs.filter(article_category__iexact=article_category)
+#
+#         if sentiment:
+#             qs = qs.filter(sentiment__iexact=sentiment)
+#
+#         # Serialize
+#         serializer = ArticleInfoSerializer(qs, many=True)
+#         return Response(serializer.data)
+
+# from django.utils.dateparse import parse_date
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from .models import ArticleInfo
+
 
 class ArticleListView(APIView):
     def get(self, request):
+        # 1. Start with the base QuerySet
         qs = ArticleInfo.objects.all().order_by("-created_at")
 
-        # Query Params
-        from_date = request.GET.get("from_date")   # yyyy-mm-dd
-        to_date = request.GET.get("to_date")       # yyyy-mm-dd
+        # 2. Query Params
+        from_date = request.GET.get("from_date")
+        to_date = request.GET.get("to_date")
         district = request.GET.get("district")
         prabhag = request.GET.get("prabhag")
         article_category = request.GET.get("article_category")
         sentiment = request.GET.get("sentiment")
 
-        # Date Range Filter (using created_at)
+        # 3. Apply Filters
         if from_date:
             qs = qs.filter(created_at__date__gte=parse_date(from_date))
 
         if to_date:
             qs = qs.filter(created_at__date__lte=parse_date(to_date))
 
-        # Other Filters
         if district:
             qs = qs.filter(district__iexact=district)
 
@@ -118,9 +166,26 @@ class ArticleListView(APIView):
         if sentiment:
             qs = qs.filter(sentiment__iexact=sentiment)
 
-        # Serialize
-        serializer = ArticleInfoSerializer(qs, many=True)
-        return Response(serializer.data)
+        # 4. Select ONLY the required fields using .values()
+        # This converts the QuerySet into a list of dictionaries
+        data = qs.values(
+            'pdf_name',
+            'page_number',
+            'sentiment',
+            'district',
+            'image',
+            'article_category',
+            'NewsPaper_UploadDate',
+            'prabhag',
+            'prabhag_ID',
+            'is_govt_push_nic',
+            'is_govt_llm',
+            'is_manual',
+            'is_duplicate'
+        )
+
+        # 5. Return the list of dictionaries directly
+        return Response(list(data))
 
 
 #@csrf_exempt
