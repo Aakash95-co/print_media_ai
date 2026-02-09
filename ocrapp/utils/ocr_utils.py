@@ -34,6 +34,7 @@ from .sql_executor import insert_news_analysis_entry
 from ocrapp.utils.govt_info import GovtInfo
 from ocrapp.prabhag_utils.prabhag import PrabhagPredictor
 from .llm_utils import analyze_english_text_with_llm  # <--- IMPORT THIS
+from .civic_classifier import classify_civic_issue, _load_civic_model  # <--- ADD THIS
 
 # Check for GPU
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -133,6 +134,9 @@ def load_models_if_needed():
         GOVT_NEWS_MODEL = joblib.load(GOVT_CLS_PATH)
     
     PRABHAG_PREDICTOR = PrabhagPredictor()
+
+    # Load Civic Classifier Fine-Tuned Model (Stage 1)
+    _load_civic_model()
 
     print(f"✅ [Worker {os.getpid()}] All Models Loaded Successfully.")
 
@@ -442,6 +446,11 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 
                 gujarati_only = re.sub(r'[^\u0A80-\u0AFF\s\.]', '', guj_text)
                 gujarati_only = re.sub(r'\s+', ' ', gujarati_only).strip()
+
+                # --- Civic Issue Classification ---
+                civic_prediction = classify_civic_issue(gujarati_only)
+                print(f"🏗️ Civic Classification: {civic_prediction}")
+
                 eng_text = translate_text(gujarati_only)
 
                 # --- LLM OBSERVATION START ---
