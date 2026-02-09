@@ -563,7 +563,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     "Janadesh (Surat)", "Loksatta Jansatta (Surat)", "Navsari Bhaskar",
                     "Sandesh (Surat)", "Sandesh (Surat-Tapi)", "Soneri Surat",
                     "Surat City Bhaskar", "Surat Mitra", "Valsad-Vapi Bhaskar",
-                    "Sandesh (Navsari-Dang)"
+                    "Sandesh (Navsari-Dang)", "Bardoli-Vyara Bhaskar"
                 }
                 
                 SAURASHTRA_PAPERS = {
@@ -798,7 +798,8 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     is_sentiment_llm = sentiment_llm, 
                     article_type_pred = article_type_pred,
                     is_similar = is_similar,
-                    NewsPaper_UploadDate = NewsPaper_UploadDate
+                    NewsPaper_UploadDate=NewsPaper_UploadDate,
+                    is_municipal_commissioner="True" if civic_prediction == 1 else "False"
                 )
                 print(article.image)
                 if is_govt_push_nic:

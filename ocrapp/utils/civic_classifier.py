@@ -120,7 +120,31 @@ def _call_stage_2_api(text):
 1. Analyze the text.
 2. If it mentions Police, Crime, Arrest, or Accident -> Label is 0.
 3. If it mentions Bridge, Road, Gutter, or Civic Work -> Label is 1.
-4. Output ONLY the number (0 or 1)."""
+4. Output ONLY the number (0 or 1).
+
+Here are examples:
+
+### Text:
+ડિસેમ્બર-2021મા ખાતમુહૂર્ત થયું , બારડોલી અને માંડવી તાલુકાને જોડતા હાઈલેવલ બ્રિજનું કામ તંત્રની ઉદાસીનતાને કારણે અનંતકાળ સુધી ખેંચાઈ રહ્યું છે.
+### Label:
+1
+
+### Text:
+કૃષ્ણનગરમાં તિક્ષ્ણ હથિયારો સાથે દારૂડિયાએ મચાવ્યો આતંક અને ઘરમાં ધૂસી જાનથી મારી નાખવાની ધમકી આપી હતી. પોલીસે ચાર આરોપીઓને ઝડપી પાડ્યા છે.
+### Label:
+0
+
+### Text:
+અમદાવાદ શહેરમાં રસ્તામાં પેચવર્ક અને ડ્રેનેજલાઈનમાં સમારકામના નામે ચોક્કસસ્થળ કે પ્રશ્નના ઉલ્લેખ વગર જ કરોડો રૂપિયાના કામ મંજૂર થઈ રહ્યા છે.
+### Label:
+1
+
+### Text:
+રાજકોટમાં બૂટલેગરના પુત્રએ સાગરિતો સાથે પોલીસ સ્ટેશન પર સોડા બોટલના ઘા કર્યા હતા.
+### Label:
+0
+
+"""
 
     # Truncate for API safety
     text_safe = str(text)[:6000]
