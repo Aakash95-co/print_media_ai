@@ -6,7 +6,7 @@ import json
 from django.conf import settings
 
 # --- CONFIGURATION ---
-MODEL_1_PATH = settings.BASE_DIR / "ocrapp" / "utils" / "model" / "qwen_gujarati_14k_final" #os.path.join(settings.BASE_DIR, "qwen_gujarati_14k_final")
+MODEL_1_PATH = str(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "qwen_gujarati_14k_final") #os.path.join(settings.BASE_DIR, "qwen_gujarati_14k_final")
 
 # Reuse existing vLLM server (NO extra VRAM)
 VLLM_URL = "http://localhost:8100/v1/chat/completions"
