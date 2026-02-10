@@ -448,7 +448,9 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 gujarati_only = re.sub(r'\s+', ' ', gujarati_only).strip()
 
                 # --- Civic Issue Classification ---
-                civic_prediction = classify_civic_issue(gujarati_only)
+                civic_prediction = 0
+                if not is_article:
+                    civic_prediction = classify_civic_issue(gujarati_only)
                 print(f"🏗️ Civic Classification: {civic_prediction}")
 
                 eng_text = translate_text(gujarati_only)
@@ -555,6 +557,34 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     for u in unwanted: clean_title = clean_title.replace(u, "")
                     district, taluka, dcode, tcode, string_type, match_index, matched_token = GovtInfo.detect_district_rapidfuzz(clean_title)
                 #### district strings #####
+
+                # --- Civic Issue District Mapping Logic ---
+                if civic_prediction == 1:
+                    district_corp_mapping = {
+                        7: 300,   # Ahmedabad -> Ahmedabad Corp
+                        22: 301,  # Surat -> Surat Corp
+                        19: 302,  # Vadodara -> Vadodara Corp
+                        6: 303,   # Gandhinagar -> Gandhinagar Corp
+                        9: 304,   # Rajkot -> Rajkot Corp
+                        10: 305,  # Jamnagar -> Jamnagar Corp
+                        14: 306,  # Bhavnagar -> Bhavnagar Corp
+                        12: 307,  # Junagadh -> Junagadh Corp
+                        4: 308,   # Mehsana -> Mehsana Corp
+                        16: 309,  # Kheda -> Nadiad Corp (Nadiad is in Kheda)
+                        15: 310,  # Anand -> Anand Corp
+                        24: 311,  # Navsari -> Navsari Corp
+                        25: 312,  # Valsad -> Vapi Corp (Vapi is in Valsad)
+                        8: 313,   # Surendranagar -> Surendranagar Corp
+                        1: 314,   # Kutch -> Gandhidham Corp (Gandhidham is in Kutch)
+                        28: 315,  # Morbi -> Morbi Corp
+                        11: 316   # Porbandar -> Porbandar Corp
+                    }
+                    
+                    if dcode in district_corp_mapping:
+                        dcode = district_corp_mapping[dcode]
+                    else:
+                        dcode = 0
+                    print(f"🏗️ Civic Issue detected -> Updated Dcode to: {dcode}")
 
                 # --- Disambiguation Logic (Jetpur, Mandvi, Mangrol, Mahuva) ---
                 SOUTH_GUJARAT_PAPERS = {
