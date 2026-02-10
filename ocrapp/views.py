@@ -72,18 +72,24 @@ def ocr_upload_view(request):
                        
         print(f"Queuing task for: {new_filename}")
         
-        # CALL THE TASK WITH .delay()
-        process_pdf_task.delay(
-            pdf_path=full_path,
-            news_paper=news_paper,
-            pdf_link=pdf_link,
-            lang="gu",
-            is_article=is_article,
-            article_district=district_param,
-            is_connect=is_connect, 
-            is_urgent=is_urgent,
-            uuid=uuid,
-            NewsPaper_UploadDate = NewsPaper_UploadDate
+        # Determine queue based on priority
+        queue_name = 'high_priority' if is_article else 'celery'
+
+        # CALL THE TASK WITH .apply_async() for queue routing
+        process_pdf_task.apply_async(
+            kwargs={
+                'pdf_path': full_path,
+                'news_paper': news_paper,
+                'pdf_link': pdf_link,
+                'lang': "gu",
+                'is_article': is_article,
+                'article_district': district_param,
+                'is_connect': is_connect, 
+                'is_urgent': is_urgent,
+                'uuid': uuid,
+                'NewsPaper_UploadDate': NewsPaper_UploadDate
+            },
+            queue=queue_name
         )
         
         # Return immediate response
