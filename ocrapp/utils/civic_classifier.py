@@ -5,8 +5,12 @@ import requests
 import json
 from django.conf import settings
 
+# --- FORCE OFFLINE MODE (no HuggingFace downloads) ---
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
 # --- CONFIGURATION ---
-MODEL_1_PATH = str(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "qwen_gujarati_14k_final") #os.path.join(settings.BASE_DIR, "qwen_gujarati_14k_final")
+MODEL_1_PATH = str(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "qwen_gujarati_14k_final")
 
 # Reuse existing vLLM server (NO extra VRAM)
 VLLM_URL = "http://localhost:8100/v1/chat/completions"
@@ -43,6 +47,7 @@ def _load_civic_model():
             max_seq_length=2048,
             load_in_4bit=True,
             dtype=None,
+            local_files_only=True,
         )
         FastLanguageModel.for_inference(_CIVIC_MODEL)
         _CIVIC_LOADED = True
