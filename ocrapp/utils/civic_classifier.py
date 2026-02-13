@@ -1,70 +1,25 @@
-import torch
-import gc
-import os
 import requests
 import json
 from django.conf import settings
 
-# --- FORCE OFFLINE MODE (no HuggingFace downloads) ---
-os.environ["HF_HUB_OFFLINE"] = "1"
-os.environ["TRANSFORMERS_OFFLINE"] = "1"
-
 # --- CONFIGURATION ---
-MODEL_1_PATH = str(settings.BASE_DIR / "ocrapp" / "utils" / "model" / "qwen_gujarati_14k_final")
-
-# Reuse existing vLLM server (NO extra VRAM)
+# The URL of your vLLM server
 VLLM_URL = "http://localhost:8100/v1/chat/completions"
-VLLM_MODEL_NAME = "./qwen-7b-awq"
 
-# --- Stage 1: Global model holders (loaded once) ---
-_CIVIC_MODEL = None
-_CIVIC_TOKENIZER = None
-_CIVIC_LOADED = False
+# Stage 1: The Adapter (matches --lora-modules name in systemd)
+STAGE_1_MODEL_NAME = "civic-classifier"
 
-try:
-    from unsloth import FastLanguageModel
-except ImportError:
-    FastLanguageModel = None
-    print("⚠️ Warning: 'unsloth' not found. Civic Stage 1 disabled.")
-
-
-def _load_civic_model():
-    """Load fine-tuned model ONCE into VRAM (called from load_models_if_needed)."""
-    global _CIVIC_MODEL, _CIVIC_TOKENIZER, _CIVIC_LOADED
-
-    if _CIVIC_LOADED or not FastLanguageModel:
-        return
-
-    if not os.path.exists(MODEL_1_PATH):
-        print(f"⚠️ Civic model not found at: {MODEL_1_PATH}")
-        _CIVIC_LOADED = True  # Don't retry
-        return
-
-    try:
-        print(f"⏳ Loading Civic Fine-Tuned Model: {MODEL_1_PATH}...")
-        _CIVIC_MODEL, _CIVIC_TOKENIZER = FastLanguageModel.from_pretrained(
-            model_name=MODEL_1_PATH,
-            max_seq_length=2048,
-            load_in_4bit=True,
-            dtype=None,
-            local_files_only=True,
-        )
-        FastLanguageModel.for_inference(_CIVIC_MODEL)
-        _CIVIC_LOADED = True
-        print("✅ Civic Fine-Tuned Model Loaded.")
-    except Exception as e:
-        print(f"❌ Civic Model Load Error: {e}")
-        _CIVIC_LOADED = True  # Don't retry on failure
+# Stage 2: The Base Model (matches the model path in vLLM start command)
+STAGE_2_MODEL_NAME = "./qwen-7b-awq"
 
 
 def _run_stage_1(gujarati_text):
     """
-    Stage 1: Fine-tuned model inference (model already in VRAM).
-    Returns "0" or "1".
+    Stage 1: Calls vLLM using the Fine-Tuned LoRA Adapter.
     """
-    if _CIVIC_MODEL is None or _CIVIC_TOKENIZER is None:
-        return "0"
+    if not gujarati_text: return "0"
 
+    # Alpaca Format (Required for the adapter)
     alpaca_prompt = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 
 ### Instruction:
@@ -75,40 +30,38 @@ Classify the following Gujarati news brief into category 0 or 1.
 
 ### Response:
 """
+    # Stage 1 usually works best with shorter context (~1200 chars)
     input_text = str(gujarati_text)[:1200]
 
+    payload = {
+        "model": STAGE_1_MODEL_NAME,
+        "messages": [
+            {"role": "user", "content": alpaca_prompt.format(input_text)}
+        ],
+        "temperature": 0.1,
+        "max_tokens": 5
+    }
+
     try:
-        inputs = _CIVIC_TOKENIZER(
-            [alpaca_prompt.format(input_text)],
-            return_tensors="pt"
-        ).to("cuda")
-
-        outputs = _CIVIC_MODEL.generate(
-            **inputs,
-            max_new_tokens=4,
-            use_cache=True,
-            pad_token_id=_CIVIC_TOKENIZER.eos_token_id
-        )
-
-        decoded = _CIVIC_TOKENIZER.batch_decode(outputs)[0]
-
-        # Free tensor memory (NOT the model)
-        del inputs, outputs
-        torch.cuda.empty_cache()
-
-        response_part = decoded.split("### Response:\n")[1].strip()
-        return "1" if "1" in response_part[:2] else "0"
-
+        response = requests.post(VLLM_URL, json=payload, timeout=20)
+        if response.status_code == 200:
+            content = response.json()['choices'][0]['message']['content']
+            if "1" in content: return "1"
+            return "0"
+        else:
+            print(f"⚠️ Stage 1 API Error: {response.status_code}")
+            return "0"
     except Exception as e:
-        print(f"❌ Stage 1 Inference Error: {e}")
+        print(f"⚠️ Stage 1 Connection Error: {e}")
         return "0"
 
 
 def _call_stage_2_api(text):
     """
-    Stage 2: Calls EXISTING vLLM server to refine classification.
-    Uses 0 extra VRAM — just an HTTP request.
+    Stage 2: Calls vLLM using the Base Model with your EXACT Few-Shot Prompt.
     """
+
+    # 1. THE EXACT SYSTEM INSTRUCTION & EXAMPLES
     system_instruction = """You are a news classifier. Classify the text into:
 
 **Label '1' (Municipal / Civic Infrastructure):**
@@ -148,46 +101,59 @@ Here are examples:
 રાજકોટમાં બૂટલેગરના પુત્રએ સાગરિતો સાથે પોલીસ સ્ટેશન પર સોડા બોટલના ઘા કર્યા હતા.
 ### Label:
 0
-
 """
 
-    # Truncate for API safety
-    text_safe = str(text)[:6000]
+    # 2. TRUNCATE TEXT (Exactly as per your script: 1500 chars)
+    text_safe = str(text)
+    if len(text_safe) > 1500:
+        text_safe = text_safe[:1500] + "..."
+
+    # 3. CONSTRUCT THE PROMPT
+    # We send the instructions as 'system' and the specific text as 'user'.
+    # We append "### Label:\n" to the user message to force the completion style.
+
+    user_content = f"### Text:\n{text_safe}\n### Label:\n"
 
     payload = {
-        "model": VLLM_MODEL_NAME,
+        "model": STAGE_2_MODEL_NAME,  # Hits the Base Model
         "messages": [
             {"role": "system", "content": system_instruction},
-            {"role": "user", "content": f"Text: {text_safe}"}
+            {"role": "user", "content": user_content}
         ],
-        "temperature": 0.1,
-        "max_tokens": 10
+        "temperature": 0.1,  # Low temp for deterministic results
+        "max_tokens": 5  # We only need 1 token, but 5 is safe
     }
 
     try:
         response = requests.post(VLLM_URL, json=payload, timeout=20)
+
         if response.status_code == 200:
             content = response.json()['choices'][0]['message']['content']
+
+            # 4. PARSE LOGIC
+            # Since API returns just the completion, we don't need to split "### Label:"
+            # We just look for the number in the response.
             if "0" in content:
                 return 0
             if "1" in content:
                 return 1
+
+            # Fallback if model output is unexpected
+            return 0
         else:
             print(f"⚠️ Stage 2 API Error: {response.status_code}")
+            return 1  # Fallback to 1 if API fails (preserves Stage 1's decision)
+
     except Exception as e:
         print(f"⚠️ Stage 2 Connection Error: {e}")
-
-    # Default: trust Stage 1 if API fails
-    return 1
+        return 1
 
 
 def classify_civic_issue(gujarati_text):
     """
-    Hybrid Pipeline:
-      Stage 1: Local Fine-Tuned Model (persistent in VRAM)
-      Stage 2: API call to existing vLLM server (0 extra VRAM)
-
-    Returns: int (0 or 1)
+    Hybrid Pipeline (Pure API Version):
+      Stage 1: API call to LoRA Adapter (civic-classifier)
+      Stage 2: API call to Base Model (./qwen-7b-awq)
     """
     if not gujarati_text or not str(gujarati_text).strip():
         return 0
@@ -204,3 +170,8 @@ def classify_civic_issue(gujarati_text):
         return final_pred
 
     return 0
+
+
+# Keep this empty function so existing imports in tasks.py don't break
+def _load_civic_model():
+    pass
