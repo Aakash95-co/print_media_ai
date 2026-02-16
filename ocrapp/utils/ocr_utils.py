@@ -583,7 +583,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     if dcode in district_corp_mapping:
                         dcode = district_corp_mapping[dcode]
                     else:
-                        dcode = 0
+                        dcode = dcode
                     print(f"🏗️ Civic Issue detected -> Updated Dcode to: {dcode}")
 
                 # --- Disambiguation Logic (Jetpur, Mandvi, Mangrol, Mahuva) ---
