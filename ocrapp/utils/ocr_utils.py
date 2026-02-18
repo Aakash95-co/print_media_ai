@@ -449,9 +449,11 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
 
                 # --- Civic Issue Classification ---
                 civic_prediction = 0
+                civic_pred_remark = None  # Initialize variable
                 if not is_article:
-                    civic_prediction = classify_civic_issue(gujarati_only)
-                print(f"🏗️ Civic Classification: {civic_prediction}")
+                    civic_prediction, civic_pred_remark = classify_civic_issue(gujarati_only)
+                
+                print(f"🏗️ Civic Classification: {civic_prediction}, Remark: {civic_pred_remark}")
 
                 eng_text = translate_text(gujarati_only)
 
@@ -672,6 +674,10 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                         f"article_type_pred={article_type_pred},"
                         f"{conf_llm}%"
                     )
+
+                # Append Civic Remark if available
+                if civic_pred_remark:
+                    article_remarks += f", Civic={civic_pred_remark}"
             
                 # --- CONSOLIDATED DUPLICATE CHECK (DB BASED) ---
                 is_duplicate = False

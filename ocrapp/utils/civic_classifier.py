@@ -1,6 +1,8 @@
 import requests
 import json
+import re
 from django.conf import settings
+from rapidfuzz import fuzz
 
 # --- CONFIGURATION ---
 # The URL of your vLLM server
@@ -11,6 +13,16 @@ STAGE_1_MODEL_NAME = "civic-classifier"
 
 # Stage 2: The Base Model (matches the model path in vLLM start command)
 STAGE_2_MODEL_NAME = "./qwen-7b-awq"
+
+CIVIC_KEYWORDS = [
+    "મહાનગરપાલિકા",
+    # "મ્યુનિસિપાલિટી", # Commented out as per requirement
+    "મ્યુનિસિપલ",
+    "કોર્પોરેશન",
+    "મનપા",
+]
+
+FUZZY_THRESHOLD = 90
 
 
 def _run_stage_1(gujarati_text):
@@ -149,27 +161,49 @@ Here are examples:
         return 1
 
 
+def match_civic_keywords(text):
+    """
+    Checks if any word in the text fuzzily matches the civic keywords.
+    Returns: (is_match (int), remark (str or None))
+    """
+    if not text:
+        return 0, None
+
+    # Ensure text is string and split into words
+    words = str(text).split()
+
+    for idx, word in enumerate(words):
+        for kw in CIVIC_KEYWORDS:
+            # Calculate fuzzy ratio
+            score = fuzz.ratio(word, kw)
+            
+            if score >= FUZZY_THRESHOLD:
+                remark = f"index={idx}, word={word}, matched={kw}, score={score:.2f}%"
+                return 1, remark
+
+    return 0, None
+
+
 def classify_civic_issue(gujarati_text):
     """
-    Hybrid Pipeline (Pure API Version):
-      Stage 1: API call to LoRA Adapter (civic-classifier)
-      Stage 2: API call to Base Model (./qwen-7b-awq)
+    Replaces the old ML/LLM pipeline with simple keyword matching.
+    Returns: (prediction (int), remark (str or None))
     """
     if not gujarati_text or not str(gujarati_text).strip():
-        return 0
+        return 0, None
 
-    # Stage 1
-    prediction_stage_1 = _run_stage_1(gujarati_text)
-    print(f"🏗️ Civic Stage 1 Prediction: {prediction_stage_1}")
+    # 1. Clean Text (Keep only Gujarati characters and spaces)
+    text_clean = re.sub(r'[^\u0A80-\u0AFF\s\.]', '', str(gujarati_text))
+    text_clean = re.sub(r'\s+', ' ', text_clean).strip()
 
-    # Stage 2 (only if Stage 1 says "1")
-    if prediction_stage_1 == "1":
-        print("🔍 Civic Stage 2: Confirming via API...")
-        final_pred = _call_stage_2_api(gujarati_text)
-        print(f"🏁 Civic Final Prediction: {final_pred}")
-        return final_pred
-
-    return 0
+    # 2. Match
+    is_match, remark = match_civic_keywords(text_clean)
+    
+    if is_match:
+        print(f"🏗️ Civic Match Found: {remark}")
+        return 1, remark
+    
+    return 0, None
 
 
 # Keep this empty function so existing imports in tasks.py don't break
