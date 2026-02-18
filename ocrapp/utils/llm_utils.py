@@ -364,3 +364,56 @@ def analyze_english_text_with_llm(text):
         print(f"⚠️ Prabhag Classification Error: {e}")
 
     return guj_category, is_govt_bool, confidence, sentiment_str, prabhag_name, prabhag_id
+
+
+def classify_personal_tragedy_crime(text):
+    """
+    Classifies text into '1' (Personal Tragedies & Resolved Crimes) or '0' (Systemic/Other).
+    Returns: int (1 or 0)
+    """
+    if not text or len(str(text)) < 5:
+        return 0
+
+    # TRUNCATE TEXT to 2048 characters to prevent Token Limit Error
+    truncated_text = str(text)[:2048]
+
+    system_prompt = (
+        "You are a strict news classifier. Classify the news article into '1' or '0' based on these rules:\n\n"
+        "TARGET CLASS '1' (Personal Tragedies & Resolved Personal Crimes):\n"
+        "1. SUICIDE: Personal reasons (financial, exams, love, family). NOT government/system/religion.\n"
+        "2. CRIME: Personal nature WHERE POLICE ACTION HAS ALREADY BEEN TAKEN (arrests, FIR).\n\n"
+        "NON-TARGET CLASS '0' (Systemic Issues, Unresolved or Heinous Crimes):\n"
+        "1. SUICIDE: Government fault, System failure, Religious reasons.\n"
+        "2. CRIME: Heinous (terrorism, riots) OR crimes with NO police action yet.\n"
+        "3. OTHER: Politics, Sports, etc.\n\n"
+        "Output Requirement: Return ONLY the number '0' or '1'. No explanation."
+    )
+
+    payload = {
+        "model": MODEL_NAME,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"News Text: {truncated_text}"}
+        ],
+        "temperature": 0.0,
+        "max_tokens": 10
+    }
+
+    try:
+        response = requests.post(VLLM_URL, json=payload, timeout=30)
+
+        if response.status_code == 200:
+            content = response.json()['choices'][0]['message']['content'].strip()
+            # Simple check for 1 or 0
+            if "1" in content:
+                return 1
+            if "0" in content:
+                return 0
+            return 0
+        else:
+            print(f"⚠️ Tragedies/Crime Classifier Status {response.status_code}")
+            return 0
+
+    except Exception as e:
+        print(f"⚠️ Tragedies/Crime Classifier Error: {e}")
+        return 0
