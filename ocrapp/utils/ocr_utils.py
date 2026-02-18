@@ -672,12 +672,9 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                         f"matched_token={matched_token}, "
                         f"model_pred={model_pred}, "
                         f"article_type_pred={article_type_pred},"
-                        f"{conf_llm}%"
+                        f"{conf_llm}%",
+                        f"civic_pred_remark={civic_pred_remark}"
                     )
-
-                # Append Civic Remark if available
-                if civic_pred_remark:
-                    article_remarks += f", Civic={civic_pred_remark}"
             
                 # --- CONSOLIDATED DUPLICATE CHECK (DB BASED) ---
                 is_duplicate = False
