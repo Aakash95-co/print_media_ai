@@ -737,7 +737,9 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 is_govt_push_nic = False
                 is_similar = False
                 if article_type_pred == "article" and model_pred == 1  and sentiment_label in ["negative"] \
-                    and is_govt_llm == True and district not in [None, "Unknown"] and sentiment_llm == "Negative" and is_duplicate == False :
+                    and is_govt_llm == True and district not in [None, "Unknown"] and sentiment_llm == "Negative" and is_duplicate == False \
+                    and tragedy_crime_pred != 1:
+
 
                     # --- CHECK FOR SEMANTIC SIMILARITY --- 
                     similar_rec_id = None
