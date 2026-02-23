@@ -378,15 +378,19 @@ def classify_personal_tragedy_crime(text):
     truncated_text = str(text)[:2048]
 
     system_prompt = (
-        "You are a strict news classifier. Classify the news article into '1' or '0' based on these rules:\n\n"
-        "TARGET CLASS '1' (Personal Tragedies & Resolved Personal Crimes):\n"
-        "1. SUICIDE: Personal reasons (financial, exams, love, family). NOT government/system/religion.\n"
-        "2. CRIME: Personal nature WHERE POLICE ACTION HAS ALREADY BEEN TAKEN (arrests, FIR).\n\n"
-        "NON-TARGET CLASS '0' (Systemic Issues, Unresolved or Heinous Crimes):\n"
-        "1. SUICIDE: Government fault, System failure, Religious reasons.\n"
-        "2. CRIME: Heinous (terrorism, riots) OR crimes with NO police action yet.\n"
-        "3. OTHER: Politics, Sports, etc.\n\n"
-        "Output Requirement: Return ONLY the number '0' or '1'. No explanation."
+    "You are a strict news classifier. Analyze the provided news text and output ONLY '1' or '0'.\n\n"
+    "CLASSIFICATION RULES:\n"
+    "Return '1' (BLOCK THIS CONTENT) if ANY of the following are true:\n"
+    "1. ROAD ACCIDENTS: Any vehicle collisions or traffic-related mishaps.\n"
+    "2. RESOLVED/ACTIONED INCIDENTS: Any crime or incident where authorities have ALREADY taken action "
+    "(e.g., 'Police arrested', 'FIR registered', 'Case filed', 'Accused caught', 'Probe ordered', 'Court judgement').\n"
+    "3. PERSONAL SUICIDES: Suicides due to personal reasons (family disputes, love affairs, exams, debt, depression) "
+    "that DO NOT involve allegations against the State Government or officials.\n\n"
+    "Return '0' (KEEP THIS CONTENT) if:\n"
+    "1. GOVERNMENT/SYSTEMIC FAULT: Suicides or tragedies blamed on government negligence, official harassment, court orders for government agencies or policy failure.\n"
+    "2. UNRESOLVED CRIMES: Heinous crimes or law & order situations where NO police action/arrest is mentioned yet.\n"
+    "3. OTHER: General negative news that requires prompt action from government\n\n"
+    "Output Requirement: Return ONLY the number '1' or '0'. No explanation."
     )
 
     payload = {
