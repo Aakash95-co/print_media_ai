@@ -289,10 +289,32 @@ def analyze_sentiment(text):
         probs = torch.softmax(logits, dim=1).cpu().numpy()[0] 
         agg += probs
     agg /= len(chunks)
-    label = ["negative", "neutral", "positive"][np.argmax(agg)]
-    return f"{label} : {agg[np.argmax(agg)] * 100:.2f}%"
 
-# ... (Keep your _area, _intersection_area, _is_duplicate, _y_overlap, _merge_boxes, _normalize_blocks functions exactly as they are) ...
+    # --- AGGRESIVE NEGATIVE LOGIC ---
+    # scores indices: 0=negative, 1=neutral, 2=positive
+    neg_score = agg[0]
+    neu_score = agg[1]
+    pos_score = agg[2]
+
+    labels = ["negative", "neutral", "positive"]
+    raw_index = np.argmax(agg)
+    final_label = labels[raw_index]
+    gravity = agg[raw_index]
+
+    FORCE_NEGATIVE_THRESHOLD = 0.30  # Very sensitive (30%)
+
+    if final_label == "neutral":
+        if neg_score > FORCE_NEGATIVE_THRESHOLD:
+            final_label = "negative"
+            gravity = neg_score
+        
+        # Backup: If Neg > Pos (even if both are tiny), prefer Negative
+        elif neg_score > pos_score and neg_score > 0.15 :
+            final_label = "negative"
+            gravity = neg_score
+
+    return f"{final_label} : {gravity * 100:.2f}%"
+
 def _area(b):
     x1, y1, x2, y2 = b
     return max(0, x2 - x1) * max(0, y2 - y1)

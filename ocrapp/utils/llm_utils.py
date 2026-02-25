@@ -378,19 +378,25 @@ def classify_personal_tragedy_crime(text):
     truncated_text = str(text)[:2048]
 
     system_prompt = (
-    "You are a strict news classifier. Analyze the provided news text and output ONLY '1' or '0'.\n\n"
-    "CLASSIFICATION RULES:\n"
-    "Return '1' (BLOCK THIS CONTENT) if ANY of the following are true:\n"
-    "1. ROAD ACCIDENTS: Any vehicle collisions or traffic-related mishaps.\n"
-    "2. RESOLVED/ACTIONED INCIDENTS: Any crime or incident where authorities have ALREADY taken action "
-    "(e.g., 'Police arrested', 'FIR registered', 'Case filed', 'Accused caught', 'Probe ordered', 'Court judgement').\n"
-    "3. PERSONAL SUICIDES: Suicides due to personal reasons (family disputes, love affairs, exams, debt, depression) "
-    "that DO NOT involve allegations against the State Government or officials.\n\n"
-    "Return '0' (KEEP THIS CONTENT) if:\n"
-    "1. GOVERNMENT/SYSTEMIC FAULT: Suicides or tragedies blamed on government negligence, official harassment, court orders for government agencies or policy failure.\n"
-    "2. UNRESOLVED CRIMES: Heinous crimes or law & order situations where NO police action/arrest is mentioned yet.\n"
-    "3. OTHER: General negative news that requires prompt action from government\n\n"
-    "Output Requirement: Return ONLY the number '1' or '0'. No explanation."
+
+           "You are a strict news classifier. Analyze the provided news text and output ONLY '1' or '0'.\n\n"
+        
+        "CLASSIFICATION RULES:\n"
+        "Return '1' (BLOCK THIS CONTENT) if ANY of the following are true:\n"
+        "1. ROAD ACCIDENTS: Any vehicle collisions or traffic-related mishaps.\n"
+        "2. RESOLVED/ACTIONED INCIDENTS: Any crime or theft or incident where authorities have ALREADY taken action "
+        "(e.g., 'Police arrested', 'FIR registered', 'Case filed', 'Accused caught', 'Probe ordered', 'Court judgement').\n"
+        "3. SUICIDES: Suicides due to personal reasons (family disputes, love affairs, exams, debt, depression) by consuming poison, hanging, jumping from building/bridge"
+        "that DO NOT involve allegations against the State Government or officials.\n\n"
+	"4. DEATHS: Death of a person due to natural causes that do not involve any allegations against the State Government or officials" 
+        
+        "Return '0' (KEEP THIS CONTENT) if:\n"
+        "1. GOVERNMENT/SYSTEMIC FAULT: Suicides or tragedies blamed on government negligence, official harassment, court orders for government agencies or policy failure.\n"
+        "2. UNRESOLVED CRIMES: Heinous crimes or law & order situations where NO police action/arrest is mentioned yet.\n"
+        "3. OTHER: General negative news that requires prompt action from government"
+        
+        "Output Requirement: Return strictly ONLY the number '1' or '0'. No explanation."
+
     )
 
     payload = {
