@@ -379,23 +379,112 @@ def classify_personal_tragedy_crime(text):
 
     system_prompt = (
 
-           "You are a strict news classifier. Analyze the provided news text and output ONLY '1' or '0'.\n\n"
-        
+        "You are a strict news classifier. Analyze the provided news text and output ONLY '1' or '0'.\n\n"
+
         "CLASSIFICATION RULES:\n"
         "Return '1' (BLOCK THIS CONTENT) if ANY of the following are true:\n"
         "1. ROAD ACCIDENTS: Any vehicle collisions or traffic-related mishaps.\n"
         "2. RESOLVED/ACTIONED INCIDENTS: Any crime or theft or incident where authorities have ALREADY taken action "
         "(e.g., 'Police arrested', 'FIR registered', 'Case filed', 'Accused caught', 'Probe ordered', 'Court judgement').\n"
-        "3. SUICIDES: Suicides due to personal reasons (family disputes, love affairs, exams, debt, depression) by consuming poison, hanging, jumping from building/bridge"
-        "that DO NOT involve allegations against the State Government or officials.\n\n"
-	"4. DEATHS: Death of a person due to natural causes that do not involve any allegations against the State Government or officials" 
-        
+        "3. SUICIDES: Suicides due to personal reasons (family disputes, love affairs, exams, debt, depression) by consuming poison, hanging, jumping from building/bridge "
+        "that DO NOT involve allegations against the State Government or officials.\n"
+        "4. DEATHS: Death of a person due to natural causes like heart attack/ailments that do not require State Government involvement.\n"
+        "5. PRIVATE/CIVIL DISPUTES & NOTICES: Public notices, missing persons, or cyber fraud where a case is already registered.\n\n"
+
         "Return '0' (KEEP THIS CONTENT) if:\n"
         "1. GOVERNMENT/SYSTEMIC FAULT: Suicides or tragedies blamed on government negligence, official harassment, court orders for government agencies or policy failure.\n"
         "2. UNRESOLVED CRIMES: Heinous crimes or law & order situations where NO police action/arrest is mentioned yet.\n"
-        "3. OTHER: General negative news that requires prompt action from government"
-        
+        "3. OTHER: General negative news that requires prompt action from government.\n\n"
+
+        "EXAMPLES:\n\n"
+
+        "Input: A tragic road accident occurred on the highway where a truck collided with a motorcycle, resulting in the death of the rider.\n"
+        "Output: 1\n\n"
+
+        "Input: The city police have arrested the main accused involved in the bank robbery. An FIR has been registered and the investigation is ongoing.\n"
+        "Output: 1\n\n"
+
+        "Input: Distressed over family disputes and mounting personal debt, a 35-year-old man committed suicide by consuming poison at his residence.\n"
+        "Output: 1\n\n"
+
+        "Input: Two groups fought in public over a parking issue. One person attacked another with a sharp weapon. Police reached the spot and nabbed the attackers.\n"
+        "Output: 1\n\n"
+
+        "Input: A software engineer lost Rs 50,000 due to online cyber fraud. A case has been filed with the Cyber Crime cell.\n"
+        "Output: 1\n\n"
+
+        "Input: A senior citizen passed away this morning due to a sudden heart attack while returning from the market.\n"
+        "Output: 1\n\n"
+
+        "Input: A complaint has been filed regarding a teenager who went missing yesterday evening.\n"
+        "Output: 1\n\n"
+
+        "Input: This Public Notice informs the public and all concerned, if any person, institution, or any person has a dispute with respect to the sale, mortgage, or any other kind of encumbrance of the said property, please contact the undersigned.\n"
+        "Output: 1\n\n"
+
+        "Input: Villagers are protesting against the electricity department, alleging that a loose wire caused the death of three farmers. No officials have visited the spot yet.\n"
+        "Output: 0\n\n"
+
+        "Input: A jeweller was shot dead in broad daylight by unidentified assailants. The attackers escaped and police is yet to take any action yet.\n"
+        "Output: 0\n\n"
+
+        "Input: A farmer committed suicide, leaving a note blaming the Tehsildar for demanding bribes and harassment regarding land records.\n"
+        "Output: 0\n\n"
+
         "Output Requirement: Return strictly ONLY the number '1' or '0'. No explanation."
+
+        #     "You are a strict news classifier. Analyze the provided news text and output ONLY '1' or '0'.\n\n"
+    #     "CLASSIFICATION RULES:\n"
+    #     "Return '1' (BLOCK THIS CONTENT) if ANY of the following are true:\n"                                                                                                                   "1. ROAD ACCIDENTS: Any vehicle collisions or traffic-related mishaps.\n"                                                                                                               "2. RESOLVED/ACTIONED INCIDENTS: Any crime or theft or incident where authorities have ALREADY taken action "
+    #     "(e.g., 'Police arrested', 'FIR registered', 'Case filed', 'Accused caught', 'Probe ordered', 'Court judgement').\n"                                                                    "3. SUICIDES: Suicides due to personal reasons (family disputes, love affairs, exams, debt, depression) by consuming poison, hanging, jumping from building/bridge "
+    #     "that DO NOT involve allegations against the State Government or officials.\n"                                                                                                          "4. DEATHS: Death of a person due to natural causes like heart attack/ailments that do not require State Government involvement.\n"                                                     "5. PRIVATE/CIVIL DISPUTES & NOTICES: Public notices, missing persons, or cyber fraud where a case is already registered.\n\n"
+    #     "Return '0' (KEEP THIS CONTENT) if:\n"
+    #     "1. GOVERNMENT/SYSTEMIC FAULT: Suicides or tragedies blamed on government negligence, official harassment, court orders for government agencies or policy failure.\n"                   "2. UNRESOLVED CRIMES: Heinous crimes or law & order situations where NO police action/arrest is mentioned yet.\n"                                                                      "3. OTHER: General negative news that requires prompt action from government.\n\n"
+    #     "EXAMPLES:\n\n"
+    #     "Input: A tragic road accident occurred on the highway where a truck collided with a motorcycle, resulting in the death of the rider.\n"                                                "Output: 1\n\n"
+    #     "Input: The city police have arrested the main accused involved in the bank robbery. An FIR has been registered and the investigation is ongoing.\n"
+    #     "Output: 1\n\n"                                                                                                                                                                                                                                                                                                                                                                 "Input: Distressed over family disputes and mounting personal debt, a 35-year-old man committed suicide by consuming poison at his residence.\n"
+    #     "Output: 1\n\n"
+    #     "Input: Two groups fought in public over a parking issue. One person attacked another with a sharp weapon. Police reached the spot and nabbed the attackers.\n"                         "Output: 1\n\n"
+    #     "Input: A software engineer lost Rs 50,000 due to online cyber fraud. A case has been filed with the Cyber Crime cell.\n"                                                               "Output: 1\n\n"
+    #
+    #     "Input: A senior citizen passed away this morning due to a sudden heart attack while returning from the market.\n"
+    #     "Output: 1\n\n"
+    #
+    #     "Input: A complaint has been filed regarding a teenager who went missing yesterday evening.\n"
+    #     "Output: 1\n\n"
+    #
+    #     "Input: This Public Notice informs the public and all concerned, if any person, institution, or any person has a dispute with respect to the sale, mortgage, or any other kind of e>    "
+    # Output: 1\n\n"
+    #
+    # "Input: Villagers are protesting against the electricity department, alleging that a loose wire caused the death of three farmers. No officials have visited the spot yet.\n"
+    # "Output: 0\n\n"
+    #
+    # "Input: A jeweller was shot dead in broad daylight by unidentified assailants. The attackers escaped and police is yet to take any action yet.\n"
+    # "Output: 0\n\n"
+    #
+    # "Input: A farmer committed suicide, leaving a note blaming the Tehsildar for demanding bribes and harassment regarding land records.\n"
+    # "Output: 0\n\n"
+    #
+    # "Output Requirement: Return strictly ONLY the number '1' or '0'. No explanation."
+
+    #        "You are a strict news classifier. Analyze the provided news text and output ONLY '1' or '0'.\n\n"
+    #
+    #     "CLASSIFICATION RULES:\n"
+    #     "Return '1' (BLOCK THIS CONTENT) if ANY of the following are true:\n"
+    #     "1. ROAD ACCIDENTS: Any vehicle collisions or traffic-related mishaps.\n"
+    #     "2. RESOLVED/ACTIONED INCIDENTS: Any crime or theft or incident where authorities have ALREADY taken action "
+    #     "(e.g., 'Police arrested', 'FIR registered', 'Case filed', 'Accused caught', 'Probe ordered', 'Court judgement').\n"
+    #     "3. SUICIDES: Suicides due to personal reasons (family disputes, love affairs, exams, debt, depression) by consuming poison, hanging, jumping from building/bridge"
+    #     "that DO NOT involve allegations against the State Government or officials.\n\n"
+	# "4. DEATHS: Death of a person due to natural causes that do not involve any allegations against the State Government or officials"
+    #
+    #     "Return '0' (KEEP THIS CONTENT) if:\n"
+    #     "1. GOVERNMENT/SYSTEMIC FAULT: Suicides or tragedies blamed on government negligence, official harassment, court orders for government agencies or policy failure.\n"
+    #     "2. UNRESOLVED CRIMES: Heinous crimes or law & order situations where NO police action/arrest is mentioned yet.\n"
+    #     "3. OTHER: General negative news that requires prompt action from government"
+    #
+    #     "Output Requirement: Return strictly ONLY the number '1' or '0'. No explanation."
 
     )
 
