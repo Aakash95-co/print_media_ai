@@ -5,7 +5,7 @@ from difflib import get_close_matches
 
 # --- Configuration ---
 VLLM_URL = "http://localhost:8100/v1/chat/completions"
-MODEL_NAME = "./qwen-7b-awq"
+MODEL_NAME = "./qwen-14b-awq"
 
 # --- Gujarati -> English mapping ---
 GUJ_TO_ENG = {

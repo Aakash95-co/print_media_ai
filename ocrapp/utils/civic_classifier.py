@@ -12,7 +12,7 @@ VLLM_URL = "http://localhost:8100/v1/chat/completions"
 STAGE_1_MODEL_NAME = "civic-classifier"
 
 # Stage 2: The Base Model (matches the model path in vLLM start command)
-STAGE_2_MODEL_NAME = "./qwen-7b-awq"
+STAGE_2_MODEL_NAME = "./qwen-14b-awq" #"./qwen-7b-awq"
 
 CIVIC_KEYWORDS = [
     "મહાનગરપાલિકા",

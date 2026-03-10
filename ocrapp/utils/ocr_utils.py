@@ -68,7 +68,7 @@ DUPLICATE_THRESHOLD_L2 = 0.50
 # --- SIMILARITY LLM CONFIG ---
 LLM_BASE_URL = "http://localhost:8100/v1"
 LLM_API_KEY = "EMPTY"
-SIMILARITY_MODEL_NAME = "./qwen-7b-awq"
+SIMILARITY_MODEL_NAME = "./qwen-14b-awq"
 
 try:
     LLM_CLIENT = OpenAI(base_url=LLM_BASE_URL, api_key=LLM_API_KEY)
