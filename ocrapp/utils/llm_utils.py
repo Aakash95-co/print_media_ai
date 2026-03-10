@@ -414,7 +414,7 @@ def analyze_english_text_with_llm(text):
             "You are an intelligent government grievance router. Analyze the provided news text and map it to the most relevant Government Department ID from the list below.\n\n"
 
             "DEPARTMENT LIST (ID : Name):\n" +
-            "\n".join([f"{k} : {v}" for k, v in PRABHAG_DATA.items()]) + "\n\n"
+            "\n".join([f"{k} : {v}" for k, v in DEPT_MAPPING.items()]) + "\n\n"
 
              "CLASSIFICATION RULES:\n"
              "- Identify the core issue needing resolution.\n"
