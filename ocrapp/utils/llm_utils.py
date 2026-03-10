@@ -140,6 +140,50 @@ PRABHAG_DATA = [
     {"id": 51, "guj": "રેલવે", "eng": "Railways"},
 ]
 
+
+
+DEPT_MAPPING = {
+    1: "Food, Civil Supplies & Consumer Affairs Department",
+    2: "Tribal Development Department",
+    3: "Health & Family Welfare Department (Health Education)",
+    5: "Industries & Mines Department",
+    6: "Industries & Mines Department (Cottage & Rural Industries)",
+    7: "Industries & Mines Department (Tourism, Pilgrimage)",
+    8: "Energy & Petrochemicals Department",
+    9: "Climate Change Department",
+    10: "Legal Department",
+    11: "Agriculture, Farmer Welfare & Co-operation Department",
+    12: "Agriculture (Animal Husbandry, Cow Breeding, Fisheries, Co-operation)",
+    13: "Home Department (Police, Law & Order)",
+    15: "Narmada, Water Resources, Water Supply & Kalpasar (Irrigation)",
+    16: "Narmada, Water Resources, Water Supply & Kalpasar (Narmada)",
+    17: "Narmada, Water Resources, Water Supply & Kalpasar (Water Supply)",
+    19: "Finance Department",
+    22: "Panchayat, Rural Housing & Rural Development Department",
+    23: "Panchayat (Rural Development)",
+    24: "Ports & Transport Department",
+    27: "Revenue Department (Land, Collector, Mamlatdar)",
+    28: "Women & Child Development Department",
+    29: "Road & Building Department (State Highways, Govt Buildings)",
+    30: "Information & Broadcasting Department",
+    31: "Sports, Youth & Cultural Activities Department",
+    32: "Forest & Environment Department",
+    33: "Legislative & Parliamentary Affairs Department",
+    36: "Gujarat Legislative Assembly",
+    37: "Science & Technology Department",
+    38: "Social Justice & Empowerment Department",
+    39: "Urban Development & Urban Housing Department",
+    41: "Education Department (Primary & Secondary Education)",
+    42: "Education Department (Higher & Technical Education)",
+    43: "Labour & Employment Department",
+    44: "General Administration Department",
+    45: "General Administration Department (Planning)",
+    48: "CMO (Chief Minister's Office)",
+    49: "CS Office (Chief Secretary)",
+    50: "National Highway Authority of India (NHAI)",
+    51: "Railways"
+}
+
 PRABHAG_ENG_LIST = [item["eng"] for item in PRABHAG_DATA]
 
 def _call_vllm(prompt, json_mode=False, timeout=30):
@@ -174,23 +218,38 @@ def _clean_json_response(text):
         return match.group(1).strip()
     return text.strip()
 
+# def _pick_prabhag(model_output: str):
+#     cleaned = (model_output or "").strip()
+#     norm_lower = cleaned.lower()
+#
+#     # Direct Matching
+#     for item in PRABHAG_DATA:
+#         if norm_lower == item["eng"].lower():
+#             return item
+#
+#     # Fuzzy Matching
+#     matches = get_close_matches(norm_lower, [d.lower() for d in PRABHAG_ENG_LIST], n=1, cutoff=0.6)
+#     if matches:
+#         for item in PRABHAG_DATA:
+#             if item["eng"].lower() == matches[0]:
+#                 return item
+#
+#     return PRABHAG_DATA[0] # Default fallback
+
 def _pick_prabhag(model_output: str):
     cleaned = (model_output or "").strip()
-    norm_lower = cleaned.lower()
 
-    # Direct Matching
-    for item in PRABHAG_DATA:
-        if norm_lower == item["eng"].lower():
-            return item
-    
-    # Fuzzy Matching
-    matches = get_close_matches(norm_lower, [d.lower() for d in PRABHAG_ENG_LIST], n=1, cutoff=0.6)
-    if matches:
+    # Since the new prompt outputs an ID, we use regex to extract the first number found
+    match = re.search(r'\d+', cleaned)
+    if match:
+        extracted_id = int(match.group())
+        # Find the matching department by ID in PRABHAG_DATA
         for item in PRABHAG_DATA:
-            if item["eng"].lower() == matches[0]:
+            if item["id"] == extracted_id:
                 return item
-    
-    return PRABHAG_DATA[0] # Default fallback
+
+    # Default fallback if LLM gave an invalid response or no ID was found
+    return PRABHAG_DATA[0]
 
 def analyze_english_text_with_llm(text):
     """
@@ -302,56 +361,186 @@ def analyze_english_text_with_llm(text):
     numbered_depts = "\n".join([f"{i+1}. {dept}" for i, dept in enumerate(PRABHAG_ENG_LIST)])
 
     prompt_prabhag = (
-        f"TASK: You are a Gujarat Government department classifier. Your job is to classify the given text to exactly ONE department from the numbered list below.\n\n"
-        f"STRICT OUTPUT RULES:\n"
-        f"1. Output ONLY the exact department name from the list - nothing else\n"
-        f"2. Copy the department name character-by-character exactly as written\n"
-        f"3. NO explanations, NO reasoning, NO additional text\n"
-        f"4. NO department numbers or IDs in output\n"
-        f"5. Output must be in English only\n"
-        f"6. Do NOT translate or modify the department name\n"
-        f"7. Output on a single line only\n\n"
-        f"DEPARTMENT CLASSIFICATION HINTS:\n"
-        f"- Police, crime, security, law & order → Home Department\n"
-        f"- Schools, primary education → Education Department (Primary & Secondary Education)\n"
-        f"- Colleges, universities, technical → Education Department (Higher & Technical Education)\n"
-        f"- Farmers, crops, agriculture → Agriculture, Farmer Welfare & Co-operation Department\n"
-        f"- Cattle, dairy, fishing → Agriculture, Farmer Welfare & Co-operation Department (Animal Husbandry, Cow Breeding, Fisheries, Co-operation)\n"
-        f"- Roads, bridges, causeway → Road & Building Department\n"
-        f"- Electricity, power, petroleum → Energy & Petrochemicals Department\n"
-        f"- Water supply → Narmada, Water Resourses, Water Supply & Kalpasar Department (Water Supply)\n"
-        f"- Irrigation, canals → Narmada, Water Resourses, Water Supply & Kalpasar Department (Irrigation)\n"
-        f"- Dams, Narmada river → Narmada, Water Resourses, Water Supply & Kalpasar Department (Narmada)\n"
-        f"- Women, children, ICDS, anganwadi → Women & Child Development Department\n"
-        f"- Hospitals, doctors, medical → Health & Family Welfare Department (Public Health & Family Welfare)\n"
-        f"- Medical education, nursing → Health & Family Welfare Department (Health)\n"
-        f"- Budget, finance, taxation → Finance Department\n"
-        f"- Village, panchayat, gram sabha → Panchayat, Rural Housing & Rural Development Department\n"
-        f"- City, municipality, urban → Urban Development & Urban Housing Department\n"
-        f"- Forests, wildlife → Forest & Environment Department\n"
-        f"- Industries, factories, manufacturing, GIDC → Industries & Mines Department\n"
-        f"- Tourism, pilgrimage, temples → Industries & Mines Department (Tourism, Pilgrimage, Devsthanam Management)\n"
-        f"- Ports, ships, maritime → Ports & Transport Department (Ports)\n"
-        f"- Vehicles, RTO, transport → Ports & Transport Department (Transport)\n"
-        f"- Sports, youth, culture → Sports, Youth & Cultural Activities Department\n"
-        f"- Land revenue, collector → Revenue Department\n"
-        f"- Ration, PDS, consumer → Food, Civil Supplies & Consumer Affairs Department\n"
-        f"- Labour, workers, employment → Labour & Employment Department\n"
-        f"- SC/ST welfare, disabled → Social Justice & Empowerment Department\n"
-        f"- Chief Minister related → CMO\n"
-        f"- Chief Secretary related → CS Office\n"
-        f"- Media, press, broadcasting → Information & Broadcasting Department\n"
-        f"- Climate, carbon, green initiatives → Climate change Department\n"
-        f"- Assembly, legislature → Legislative & Parliamentary Affairs Department\n"
-        f"- Election, voting, transfer → General Administration Department (Election)\n"
-        f"- Science, research, technology → Science & Technology Department\n"
-        f"- Legal, courts, judiciary → Legal Department\n\n"
-        f"NUMBERED DEPARTMENT LIST:\n"
-        f"{numbered_depts}\n\n"
-        f"TEXT TO CLASSIFY:\n"
-        f"\"\"\"{text}\"\"\"\n\n"
-        f"DEPARTMENT NAME:"
-    )
+        # f"TASK: You are a Gujarat Government department classifier. Your job is to classify the given text to exactly ONE department from the numbered list below.\n\n"
+        # f"STRICT OUTPUT RULES:\n"
+        # f"1. Output ONLY the exact department name from the list - nothing else\n"
+        # f"2. Copy the department name character-by-character exactly as written\n"
+        # f"3. NO explanations, NO reasoning, NO additional text\n"
+        # f"4. NO department numbers or IDs in output\n"
+        # f"5. Output must be in English only\n"
+        # f"6. Do NOT translate or modify the department name\n"
+        # f"7. Output on a single line only\n\n"
+        # f"DEPARTMENT CLASSIFICATION HINTS:\n"
+        # f"- Police, crime, security, law & order → Home Department\n"
+        # f"- Schools, primary education → Education Department (Primary & Secondary Education)\n"
+        # f"- Colleges, universities, technical → Education Department (Higher & Technical Education)\n"
+        # f"- Farmers, crops, agriculture → Agriculture, Farmer Welfare & Co-operation Department\n"
+        # f"- Cattle, dairy, fishing → Agriculture, Farmer Welfare & Co-operation Department (Animal Husbandry, Cow Breeding, Fisheries, Co-operation)\n"
+        # f"- Roads, bridges, causeway → Road & Building Department\n"
+        # f"- Electricity, power, petroleum → Energy & Petrochemicals Department\n"
+        # f"- Water supply → Narmada, Water Resourses, Water Supply & Kalpasar Department (Water Supply)\n"
+        # f"- Irrigation, canals → Narmada, Water Resourses, Water Supply & Kalpasar Department (Irrigation)\n"
+        # f"- Dams, Narmada river → Narmada, Water Resourses, Water Supply & Kalpasar Department (Narmada)\n"
+        # f"- Women, children, ICDS, anganwadi → Women & Child Development Department\n"
+        # f"- Hospitals, doctors, medical → Health & Family Welfare Department (Public Health & Family Welfare)\n"
+        # f"- Medical education, nursing → Health & Family Welfare Department (Health)\n"
+        # f"- Budget, finance, taxation → Finance Department\n"
+        # f"- Village, panchayat, gram sabha → Panchayat, Rural Housing & Rural Development Department\n"
+        # f"- City, municipality, urban → Urban Development & Urban Housing Department\n"
+        # f"- Forests, wildlife → Forest & Environment Department\n"
+        # f"- Industries, factories, manufacturing, GIDC → Industries & Mines Department\n"
+        # f"- Tourism, pilgrimage, temples → Industries & Mines Department (Tourism, Pilgrimage, Devsthanam Management)\n"
+        # f"- Ports, ships, maritime → Ports & Transport Department (Ports)\n"
+        # f"- Vehicles, RTO, transport → Ports & Transport Department (Transport)\n"
+        # f"- Sports, youth, culture → Sports, Youth & Cultural Activities Department\n"
+        # f"- Land revenue, collector → Revenue Department\n"
+        # f"- Ration, PDS, consumer → Food, Civil Supplies & Consumer Affairs Department\n"
+        # f"- Labour, workers, employment → Labour & Employment Department\n"
+        # f"- SC/ST welfare, disabled → Social Justice & Empowerment Department\n"
+        # f"- Chief Minister related → CMO\n"
+        # f"- Chief Secretary related → CS Office\n"
+        # f"- Media, press, broadcasting → Information & Broadcasting Department\n"
+        # f"- Climate, carbon, green initiatives → Climate change Department\n"
+        # f"- Assembly, legislature → Legislative & Parliamentary Affairs Department\n"
+        # f"- Election, voting, transfer → General Administration Department (Election)\n"
+        # f"- Science, research, technology → Science & Technology Department\n"
+        # f"- Legal, courts, judiciary → Legal Department\n\n"
+        # f"NUMBERED DEPARTMENT LIST:\n"
+        # f"{numbered_depts}\n\n"
+        # f"TEXT TO CLASSIFY:\n"
+        # f"\"\"\"{text}\"\"\"\n\n"
+        # f"DEPARTMENT NAME:"
+
+            "You are an intelligent government grievance router. Analyze the provided news text and map it to the most relevant Government Department ID from the list below.\n\n"
+
+            "DEPARTMENT LIST (ID : Name):\n" +
+            "\n".join([f"{k} : {v}" for k, v in PRABHAG_DATA.items()]) + "\n\n"
+
+             "CLASSIFICATION RULES:\n"
+             "- Identify the core issue needing resolution.\n"
+             "- *Road / state highway / bridge / road contractor*  -> Map to ID 29"
+             "- *Farmers / Fertilizers / Crops / APMC / Cooperative* -> Map to ID 11 (Agriculture).\n"
+             "- *Pollution*-> Map to ID 32 (Forest & Environment Department)\n"
+             "- *GST / Taxes / Commercial Tax* -> Map to ID 19 (Finance).\n"
+             "- *ST Buses / Bus Depots / GSRTC / RTO* -> Map to ID 24 (Ports & Transport).\n"
+             "- *Welfare Schemes / Scholarships / Bicycles for poor or backward classes* -> Map to ID 38 (Social Justice).\n"
+             "- *Ration Shops / Fair price shop* -> Map to ID 1.\n"
+             "- *Land Titles / 7-12 / Mamlatdar / Land Scams / Talati / Land survey* -> Map to ID 27.\n"
+             "- *Elections / GPSC Recruitment / Government personnel related / Administrative Reforms and Training / NRI* -> Map to ID 44 (General Admin).\n"
+             "- *Preparation of Outcome Budget / Decentralized District Planning* -> Map to ID 45 (General Admin Planning).\n"
+             "- *National Highways* (ID 50) vs *State Roads* (ID 29).\n"
+             "- *Urban/City, municipal corporation, Stray cattle, municipality, fire related accidents* -> Map to ID 39"
+             "- *Panchayat, Village/Rural, MGNREGA, Rural employment scheme* -> Map to ID 22.\n"
+             "- *Oil, PNG, gas, GEB, power grid, electrocution, electric pole, power supply, High-tension power lines* -> Map to ID 8 (Energy).\n"
+             "- *Medical, Doctor, Pharmacy, Civil Hospitals, CHC/PHC, Drugs, Food adulteration* -> Map to ID 3 (Health).\n"
+             "- *Mining, land mafia, Illegal sand mining* -> Map to ID 5 (Industries & Mines).\n"
+             "- *Anganwadi, Women Child Development, nutrition* -> Map to ID 28 (Women & Child Development Department).\n"
+             "- **Heavy vehicles, traffic, vehicles, crime, murder, theft -> Home Department (Police, Law & Order). \n"
+             "- Output strictly ONLY the ID number.\n\n"
+
+             "EXAMPLES:\n\n"
+
+             "Input: There has been increasing resentment among traders over the harassment of inspectors, officers of the GST department for some time. There have been allegations that traders, especially those keen on starting business with a new GST number, are being put to hardship by the GST department's lackadaisical approach.\n"
+             "Output: 19\n\n"
+
+             "Input: The ST bus stand in Umra, built in 2014, has not been renovated even after 10 years of its inauguration. Necessary facilities for the passengers in the bus stand such as reservations, arrangements for passes, gift houses, print shops, etc., are in a dilapidated condition. The roof of the bus stand is also in a dilapidated condition, leading to the risk of accidents.\n"
+             "Output: 24\n\n"
+
+             "Input: Despite having stoppages on the Petlad town to Nadiad road, some ST bus operators do not allow ST buses to be parked at both the entry and exit points, causing inconvenience to commuters. There have been murmurs that the buses do not stop and run even if there are a couple of passengers at the station.\n"
+             "Output: 24\n\n"
+
+             "Input: 1379 bicycles purchased 10 years ago under the Saraswati Sadhana Yojana have not been distributed on time due to the fault of the authorities, the girl students have been deprived of the scheme and the expenditure made on the purchase of bicycles has proved to be a waste today.\n"
+             "Output: 38\n\n"
+
+             "Input: Scholarships from the government can be considered a blessing for economically weaker students. However, there have been widespread complaints from students about the amount not being credited to their accounts despite the 2022-23 scholarship being a holiday.\n"
+             "Output: 38\n\n"
+
+             "Input: Poor quality ration being distributed to the poor in Amraiwadi. There have been allegations that some ration shops in Amraiwadi were supplying items, including paddy, to people from poorer sections by adulterating them. Plastic shredded rice and low-quality salt are distributed.\n"
+             "Output: 1\n\n"
+
+             "Input: Consumers who do not get e-KYC done are angry at the closure of food grains. The shopkeepers are now in a worrying situation as the government has forced the shopkeepers of cheap grains (Fair Price Shop) to distribute the cheap grains of the coming May and June in the month of May. On the one hand, there are clashes between shopkeepers and customers as the names of poor beneficiaries of eKYC are missing from ration cards.\n"
+             "Output: 1\n\n"
+
+             "Input: With Mundra-Baroi in Kutch district getting the status of a joint municipality, an estimated Rs 100 crore land scam surfaced in both areas. And after the investigation into the matter, the Revenue Department is still showing sluggishness in handing over the scam lands to the municipality.\n"
+             "Output: 27\n\n"
+
+             "Input: In Anand district, the e-Dhara dam owned by the mamlatdar office has a no-work policy. In which the employees do not hesitate to take bribes. In the past, deputy mamlatdars and employees have been caught red-handed taking bribes in many offices.\n"
+             "Output: 27\n\n"
+
+             "Input: The GPSC Committee Board of Gujarat has submitted a memorandum to the Governor, Chief Minister, demanding justice by taking action against the casteist and SC / ST indigenous community in the government's recruitment system in violation of the constitutional rights of 5 SC, ST, OBC communities. Registering FIRs and taking action on incidents of atrocities against Dalit and Adivasi communities. It also demanded that the investigation be carried out in a fair and impartial manner and not hand over the investigation to a racist motivated officer during the investigation and all the recruitment process of the GPSC be investigated by an independent high-level committee and strict action be taken by holding the racist elements accountable.\n"
+             "Output: 44\n\n"
+
+             "Input: After the submission of 996 nomination papers in the general election for sarpanch and 2817 in the ward in the village panchayats of Sabarkantha district, the verification of the candidate papers was held on Tuesday in the presence of the candidates at the office of the mamlatdar of eight taluks as well as at the taluka panchayat office. But the system of spending crores of rupees on elections has failed to provide time for scrutiny of nomination papers. There was no arrangement for water and fans in the scorching heat and the candidates were forced to sit on the floor while the nomination papers were being scrutinized at the Khedbrahma mamlatdar's office.\n"
+             "Output: 44\n\n"
+
+             "Input: The cloudy weather and scattered rains throughout the day have caused much distress to farmers. Unseasonal rains have caused heavy loss of crops to the farmers leaving farmers worried.\n"
+             "Output: 11\n\n"
+
+             "Input: A case of permanent and temporary embezzlement has come to light in Laloda of Idar taluka of Sabarkantha district, in which an audit of millions of rupees in a milk producer cooperative society by the registrar's office has revealed the embezzlement of this entire scam. A complaint has been registered against the two men at the Eder police station and both the accused have been exposed. The Laloda Milk Producers Cooperative located in Eder taluka.\n"
+             "Output: 11\n\n"
+
+             "Input: Farmers in Saurashtra are protesting because they have not received the insurance money for their cotton crops destroyed by unseasonal rain.\n"
+             "Output: 11\n\n"
+
+             "Input: Anapur Chhota village in Dhanera taluka of Banaskantha district, where farmers have threatened to agitate if action is not taken against malpractices, has now become the center of discussion due to serious allegations of corruption. Shocking visuals have emerged of the government sending crop failure assistance to a farmer battling natural calamities instead of reaching the needy farmers. The farmers allege that the aid here has been distributed on the basis of money settings and not on the basis of need. In many cases, the online forms of farmers have not been filled, due to which they have not been entitled to government assistance.\n"
+             "Output: 11\n\n"
+
+             "Input: The agents, instead of improving the condition of the beat owners for the welfare and economic empowerment of the plantations and fishermen, being exploited by the authorities, have been rightfully entitled to the benefits of the schemes instituted. Serious irregularities are taking place in various government schemes and subsidies given to fishermen and small boat owners in major ports of the state, including Okha Porbandar port.\n"
+             "Output: 12\n\n"
+
+             "Input: The condition of the State Highway connecting Rajkot and Jamnagar is pathetic. Big potholes are causing accidents daily.\n"
+             "Output: 29\n\n"
+
+             "Input: The age-old building of MD Science College, the only grant-in-aid science college in Porbandar district, has become dilapidated. As the building became dilapidated, so many students studying here were at risk, so this building was required to be tested and the entire building was sealed by the Municipal Corporation. At the same time, the education of many students studying in this college has been interrupted.\n"
+             "Output: 42\n\n"
+
+             "Input: The first batch of students of Swaminarayan J N Parel MBA College in Porbandar started their MBA exams today. Today, the students and parents reached the college and protested vehemently. The principal admitted his mistake and said that he forgot to fill the examination forms of the students.\n"
+             "Output: 42\n\n"
+
+             "Input: The Government of Gujarat is spending crores of rupees on massive campaigns like Girl Child Education. But the reality paints a different picture. Seeing the deteriorating condition of education in Dagdianba Primary School in Waghai taluka of Dang district. Because there is a salary sanctioned for 6 teachers and there are only 02 teachers present. Serious allegations are being made by the locals that the headmaster, Acharya, is also frequently absent.\n"
+             "Output: 41\n\n"
+
+             "Input: In 28 Vansda taluka, children from tribal areas are facing severe constraints in educational facilities. Bal Vatika Class 1 and Class 2 students have not yet been provided with second-grade textbooks while Bal Vatika children have been denied uniforms and scholarships. Today, sarpanches of Vansda taluka have submitted a memorandum to the administration regarding these issues.\n"
+             "Output: 41\n\n"
+
+             "Input: The transfer of two teachers to Babsar Primary School in Wadali taluka has caused great resentment among the villagers. On learning of the transfer orders of the teachers, on Friday, the villagers of Babsar village, parents and people associated with the school management submitted a written representation to the District Education Officer.\n"
+             "Output: 41\n\n"
+
+             "Input: A jeweller was looted at gunpoint in the market area. The police arrived late and the thieves escaped.\n"
+             "Output: 13\n\n"
+
+             "Input: Piles of garbage have accumulated in the eastern zone of the city. The Municipal Corporation has failed to collect waste for a week.\n"
+             "Output: 39\n\n"
+
+             "Input: The government hospital is located in Seemalia village of Ghoghamba and it is the government's intention to benefit the poor and tribal people of the area. This government hospital has been built at the expense of the government to benefit the tribal people but there is no surgeon or gynaecologist here. Therefore, these tribal poor people have to go to other private hospitals or take delivery at risk at home.\n"
+             "Output: 3\n\n"
+
+             "Input: In a serious case of food adulteration in a wholesale shop named Mahadev Trading Company located in Asura Jhapa area of Dharampur taluka of the district, a strict and warning verdict has been given by the court. Laboratory investigations revealed the presence of nonpermitted synthetic oil soluble colorants in red chili powder as well as extraneous food ingredients such as wheat and rice starch.\n"
+             "Output: 3\n\n"
+
+             "Input: An alarming incident has been reported in Dahod city regarding the hygiene and food safety of frost food. There was a ruckus at a shop opposite the city bus stand when a customer ordered a pizza. The customer sitting to eat pizza was shocked when he saw the worm in the pizza slice. As soon as the information of the incident was received, the team of Food Department of Dahod Municipality reached the spot.\n"
+             "Output: 3\n\n"
+
+             "Input: The delay in action by the Deesa administration has raised questions. 25 Unknown mafias seem to have become unruly in the Deesa area. There is a lot of resentment among the villagers around the sand-laden vehicles on the old Deesa Vasna road. There are many minor accidents due to sand-laden vehicles on the old Deesa Vasna road, which is demanding a ban on sand-laden vehicles from the Banas river bed.\n"
+             "Output: 5\n\n"
+
+             "Input: A memorandum was submitted to the depot manager by the Akhil Bharatiya Vidyarthi Parishad Dharampur unit regarding the issues of the long-standing disorganized bus system at the bus station in Valsad Dharampur town. In particular, complaints have been raised about the non-arrival of buses on Dharampur Kaprada, Dharampur Aranai and other routes.\n"
+             "Output: 24\n\n"
+
+             "Input: Stray cattle have been terrorising residential areas, including main and interior roads, in rural areas of Gandhinagar city and the corporation area for quite some time now, causing panic among the local residents. The movement of cattle in the settlement area throughout the day has created an atmosphere of fear among the residents. There have been calls for the system to be overhauled. The problem of stray cattle is increasing day by day in the state capital and the surrounding rural areas. As a result, the condition of the residents living in the settlement area, including the main and inner Magi, has become miserable.\n"
+             "Output: 39\n\n"
+
+             "Input: Traffic jams at various places during the crossing between Rajkot Road near Subhash Bridge in the city with a large number of vehicles plying every day have become a daily affair. There is a problem of long jams especially at Mahaprabhu's Seat and Lalwadi Road Crossing during the crossing of heavy vehicles. If a system of smooth traffic regulation is put in place on the respective routes, partial relief can be achieved.\n"
+             "Output: 13\n\n"
+
+             "Input: On the main road leading to Dukhwada in Patan town, a sewer line was constructed by the municipality. But after the completion of the work, the potholes are not repaired properly, which has proved fatal for the motorists. According to the locals, the contractor has been satisfied only by pouring soil. As a result, many bikers are taking a nap as the potholes are not visible in the darkness of the night.\n"
+             "Output: 39"
+
+             "Input:  the municipality is losing a huge amount of revenue every day. The issue of the delay in the new tendering process, despite the completion of the Pay and Park contract in the Varachha zone of the Surat Municipal Corporation, has now heated up. In an aggressive tone, AAP corporator Vipul Suhagia said the delay was causing a loss of lakhs of rupees to the Surat Municipal Corporation's exchequer. Suhagia has written a letter to the municipal commissioner in this regard, raising questions on the administration. He has alleged that there was a deliberate delay in tendering. The municipal corporation's loss of lakhs to the exchequer is public money that is being squandered by the administration. "
+             "Output: 39"
+
+             "Output Requirement: Return strictly ONLY the ID number (e.g., '19', '38', '24', '44')."
+)
     
     try:
         resp_prabhag = _call_vllm(prompt_prabhag, json_mode=False)
