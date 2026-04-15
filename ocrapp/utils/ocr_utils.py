@@ -845,7 +845,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     is_municipal_commissioner="True" if civic_prediction == 1 else "False"
                 )
                 print(article.image)
-                if is_govt_push_nic:
+                if is_govt_push_nic and 1==0: # hooked added on 2-apr-2026
                     #insert_news_analysis_entry(article)
                     article_info_insert = (
                             article.page_number or 1,                              # 1 -> @Page_id INT

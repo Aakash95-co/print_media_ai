@@ -45,58 +45,7 @@ GUJ_TO_ENG = {
 ENGLISH_CATEGORIES = list(GUJ_TO_ENG.values())
 ENG_TO_GUJ = {eng: guj for guj, eng in GUJ_TO_ENG.items()}
 
-# --- UPDATED CONFIGURATION: PRABHAG DATA FROM IMAGE (IDs 1-49) ---
-# PRABHAG_DATA = [
-#     {"id": 1, "guj": "અન્ન નાગરિક પુરવઠો અને ગ્રાહક બાબતોનો વિભાગ", "eng": "Food, Civil Supplies & Consumer Affairs Department"},
-#     {"id": 2, "guj": "આદિજાતિ વિકાસ વિભાગ", "eng": "Tribal Development Department"},
-#     {"id": 3, "guj": "આરોગ્ય અને પરિવાર કલ્યાણ વિભાગ (આરોગ્ય શિક્ષણ)", "eng": "Health & Family Welfare Department (Health)"},
-#     {"id": 4, "guj": "આરોગ્ય અને પરિવાર કલ્યાણ વિભાગ (જાહેર આરોગ્ય અને પરિવાર કલ્યાણ)", "eng": "Health & Family Welfare Department (Public Health & Family Welfare)"},
-#     {"id": 5, "guj": "ઉદ્યોગ અને ખાણ વિભાગ", "eng": "Industries & Mines Department"},
-#     {"id": 6, "guj": "ઉદ્યોગ અને ખાણ વિભાગ (કુટીર ઉદ્યોગ અને ગ્રામોદ્યોગ)", "eng": "Industries & Mines Department (Cottage & Rural Industries)"},
-#     {"id": 7, "guj": "ઉદ્યોગ અને ખાણ વિભાગ (પ્રવાસન, યાત્રા પ્રવાસ, દેવસ્થાન સં.)", "eng": "Industries & Mines Department (Tourism, Pilgrimage, Devsthanam Management)"},
-#     {"id": 8, "guj": "ઉર્જા અને પેટ્રો કેમિકલ્સ વિભાગ", "eng": "Energy & Petrochemicals Department"},
-#     {"id": 9, "guj": "ક્લાઇમેટ ચેન્જ વિભાગ", "eng": "Climate change Department"},
-#     {"id": 10, "guj": "કાયદા વિભાગ", "eng": "Legal Department"},
-#     {"id": 11, "guj": "કૃષિ, ખેડૂત કલ્યાણ અને સહકાર વિભાગ", "eng": "Agriculture, Farmer Welfare & Co-operation Department"},
-#     {"id": 12, "guj": "કૃષિ, ખેડૂત કલ્યાણ અને સહકાર વિભાગ (પશુપાલન, ગૌસંવર્ધન, મત્સ્યોદ્યોગ, સહકાર)", "eng": "Agriculture, Farmer Welfare & Co-operation Department (Animal Husbandry, Cow Breeding, Fisheries, Co-operation)"},
-#     {"id": 13, "guj": "ગૃહ વિભાગ", "eng": "Home Department"},
-#     {"id": 14, "guj": "નર્મદા, જળ સંપત્તિ, પાણી પુરવઠો અને કલ્પસર વિભાગ (પુન: વસવાટ)", "eng": "Narmada, Water Resourses, Water Supply & Kalpasar Department (Rehabilitation)"},
-#     {"id": 15, "guj": "નર્મદા, જળ સંપત્તિ, પાણી પુરવઠો અને કલ્પસર વિભાગ (સિંચાઈ)", "eng": "Narmada, Water Resourses, Water Supply & Kalpasar Department (Irrigation)"},
-#     {"id": 16, "guj": "નર્મદા, જળ સંપત્તિ, પાણી પુરવઠો અને કલ્પસર વિભાગ (નર્મદા)", "eng": "Narmada, Water Resourses, Water Supply & Kalpasar Department (Narmada)"},
-#     {"id": 17, "guj": "નર્મદા, જળ સંપત્તિ, પાણી પુરવઠો અને કલ્પસર વિભાગ (પાણી પુરવઠા)", "eng": "Narmada, Water Resourses, Water Supply & Kalpasar Department (Water Supply)"},
-#     {"id": 18, "guj": "નર્મદા, જળ સંપત્તિ, પાણી પુરવઠો અને કલ્પસર વિભાગ (કલ્પસર)", "eng": "Narmada, Water Resourses, Water Supply & Kalpasar Department (Kalpasar)"},
-#     {"id": 19, "guj": "નાણાં વિભાગ", "eng": "Finance Department"},
-#     {"id": 20, "guj": "નાણાં વિભાગ (આર્થિક બાબતો)", "eng": "Finance Department (Economical Affairs)"},
-#     {"id": 21, "guj": "નાણાં વિભાગ (ખર્ચ)", "eng": "Finance Department (Expenses)"},
-#     {"id": 22, "guj": "પંચાયત, ગ્રામ ગૃહનિર્માણ અને ગ્રામ વિકાસ વિભાગ", "eng": "Panchayat, Rural Housing & Rural Development Department"},
-#     {"id": 23, "guj": "પંચાયત, ગ્રામ ગૃહનિર્માણ અને ગ્રામ વિકાસ વિભાગ (ગ્રામ વિકાસ)", "eng": "Panchayat, Rural Housing & Rural Development Department (Rural Development)"},
-#     {"id": 24, "guj": "બંદરો અને વાહન વ્યવહાર વિભાગ", "eng": "Ports & Transport Department"},
-#     {"id": 25, "guj": "બંદરો અને વાહન વ્યવહાર વિભાગ (વાહન વ્યવહાર)", "eng": "Ports & Transport Department (Transport)"},
-#     {"id": 26, "guj": "બંદરો અને વાહન વ્યવહાર વિભાગ (બંદરો)", "eng": "Ports & Transport Department (Ports)"},
-#     {"id": 27, "guj": "મહેસૂલ વિભાગ", "eng": "Revenue Department"},
-#     {"id": 28, "guj": "મહિલા અને બાળ કલ્યાણ વિકાસ વિભાગ", "eng": "Women & Child Development Department"},
-#     {"id": 29, "guj": "માર્ગ અને મકાન વિભાગ", "eng": "Road & Building Department"},
-#     {"id": 30, "guj": "માહિતી અને પ્રસારણ વિભાગ", "eng": "Information & Broadcasting Department"},
-#     {"id": 31, "guj": "રમતગમત, યુવા અને સાંસ્કૃતિક પ્રવૃત્તિ વિભાગ", "eng": "Sports, Youth & Cultural Activities Department"},
-#     {"id": 32, "guj": "વન અને પર્યાવરણ વિભાગ", "eng": "Forest & Environment Department"},
-#     {"id": 33, "guj": "વૈધાનિક અને સંસદીય બાબતોનો વિભાગ (વૈધાનિક અને સંસદીય બાબતો)", "eng": "Legislative & Parliamentary Affairs Department"},
-#     {"id": 34, "guj": "વૈધાનિક અને સંસદીય બાબતોનો વિભાગ (વૈધાનિક બાબતો)", "eng": "Legislative & Parliamentary Affairs Department (Legislative Affairs)"},
-#     {"id": 35, "guj": "વૈધાનિક અને સંસદીય બાબતોનો વિભાગ (સંસદીય બાબતો)", "eng": "Legislative & Parliamentary Affairs Department (Parliamentary Affairs)"},
-#     {"id": 36, "guj": "ગુજરાત વિધાનસભા", "eng": "Legislative & Parliamentary Affairs Department (Gujarat Legislative Assembly)"},
-#     {"id": 37, "guj": "વિજ્ઞાન અને પ્રૌદ્યોગિકી વિભાગ", "eng": "Science & Technology Department"},
-#     {"id": 38, "guj": "સામાજિક ન્યાય અને અધિકારીતા વિભાગ", "eng": "Social Justice & Empowerment Department"},
-#     {"id": 39, "guj": "શહેરી વિકાસ અને શહેરી ગૃહ નિર્માણ વિભાગ (શહેરી વિકાસ અને શહેરી હાઉસિંગ)", "eng": "Urban Development & Urban Housing Department"},
-#     {"id": 40, "guj": "શહેરી વિકાસ અને શહેરી ગૃહ નિર્માણ વિભાગ (શહેરી ગૃહ નિર્માણ અને નિર્મળ ગુજરાત)", "eng": "Urban Development & Urban Housing Department (Housing)"},
-#     {"id": 41, "guj": "શિક્ષણ વિભાગ (પ્રાથમિક અને માધ્યમિક શિક્ષણ)", "eng": "Education Department (Primary & Secondary Education)"},
-#     {"id": 42, "guj": "શિક્ષણ વિભાગ (ઉચ્ચ અને ટેકનિકલ શિક્ષણ)", "eng": "Education Department (Higher & Technical Education)"},
-#     {"id": 43, "guj": "શ્રમ અને રોજગાર વિભાગ", "eng": "Labour & Employment Department"},
-#     {"id": 44, "guj": "સામાન્ય વહીવટ વિભાગ (ક.ગ.)", "eng": "General Administration Department (Personnel)"},
-#     {"id": 45, "guj": "સામાન્ય વહીવટ વિભાગ (આયોજન)", "eng": "General Administration Department (Planning)"},
-#     {"id": 46, "guj": "સામાન્ય વહીવટ વિભાગ (વ.સુ.તા.પ્ર. અને એન.આર.આઈ.)", "eng": "General Administration Department (A.R.T.D. and NRI)"},
-#     {"id": 47, "guj": "સામાન્ય વહીવટ વિભાગ (ચૂંટણી)", "eng": "General Administration Department (Election)"},
-#     {"id": 48, "guj": "મુખ્યમંત્રીશ્રીનું કાર્યાલય", "eng": "CMO"},
-#     {"id": 49, "guj": "મુખ્ય સચિવશ્રીનું કાર્યાલય, ગુજરાત", "eng": "CS Office"}
-# ]
+
 
 PRABHAG_DATA = [
     {"id": 1, "guj": "અન્ન નાગરિક પુરવઠો અને ગ્રાહક બાબતોનો વિભાગ", "eng": "Food, Civil Supplies & Consumer Affairs Department"},
@@ -140,6 +89,50 @@ PRABHAG_DATA = [
     {"id": 51, "guj": "રેલવે", "eng": "Railways"},
 ]
 
+
+
+DEPT_MAPPING = {
+    1: "Food, Civil Supplies & Consumer Affairs Department",
+    2: "Tribal Development Department",
+    3: "Health & Family Welfare Department (Health Education)",
+    5: "Industries & Mines Department",
+    6: "Industries & Mines Department (Cottage & Rural Industries)",
+    7: "Industries & Mines Department (Tourism, Pilgrimage)",
+    8: "Energy & Petrochemicals Department",
+    9: "Climate Change Department",
+    10: "Legal Department",
+    11: "Agriculture, Farmer Welfare & Co-operation Department",
+    12: "Agriculture (Animal Husbandry, Cow Breeding, Fisheries, Co-operation)",
+    13: "Home Department (Police, Law & Order)",
+    15: "Narmada, Water Resources, Water Supply & Kalpasar (Irrigation)",
+    16: "Narmada, Water Resources, Water Supply & Kalpasar (Narmada)",
+    17: "Narmada, Water Resources, Water Supply & Kalpasar (Water Supply)",
+    19: "Finance Department",
+    22: "Panchayat, Rural Housing & Rural Development Department",
+    23: "Panchayat (Rural Development)",
+    24: "Ports & Transport Department",
+    27: "Revenue Department (Land, Collector, Mamlatdar)",
+    28: "Women & Child Development Department",
+    29: "Road & Building Department (State Highways, Govt Buildings)",
+    30: "Information & Broadcasting Department",
+    31: "Sports, Youth & Cultural Activities Department",
+    32: "Forest & Environment Department",
+    33: "Legislative & Parliamentary Affairs Department",
+    36: "Gujarat Legislative Assembly",
+    37: "Science & Technology Department",
+    38: "Social Justice & Empowerment Department",
+    39: "Urban Development & Urban Housing Department",
+    41: "Education Department (Primary & Secondary Education)",
+    42: "Education Department (Higher & Technical Education)",
+    43: "Labour & Employment Department",
+    44: "General Administration Department",
+    45: "General Administration Department (Planning)",
+    48: "CMO (Chief Minister's Office)",
+    49: "CS Office (Chief Secretary)",
+    50: "National Highway Authority of India (NHAI)",
+    51: "Railways"
+}
+
 PRABHAG_ENG_LIST = [item["eng"] for item in PRABHAG_DATA]
 
 def _call_vllm(prompt, json_mode=False, timeout=30):
@@ -176,21 +169,18 @@ def _clean_json_response(text):
 
 def _pick_prabhag(model_output: str):
     cleaned = (model_output or "").strip()
-    norm_lower = cleaned.lower()
 
-    # Direct Matching
-    for item in PRABHAG_DATA:
-        if norm_lower == item["eng"].lower():
-            return item
-    
-    # Fuzzy Matching
-    matches = get_close_matches(norm_lower, [d.lower() for d in PRABHAG_ENG_LIST], n=1, cutoff=0.6)
-    if matches:
+    # Since the new prompt outputs an ID, we use regex to extract the first number found
+    match = re.search(r'\d+', cleaned)
+    if match:
+        extracted_id = int(match.group())
+        # Find the matching department by ID in PRABHAG_DATA
         for item in PRABHAG_DATA:
-            if item["eng"].lower() == matches[0]:
+            if item["id"] == extracted_id:
                 return item
-    
-    return PRABHAG_DATA[0] # Default fallback
+
+    # Default fallback if LLM gave an invalid response or no ID was found
+    return PRABHAG_DATA[0]
 
 def analyze_english_text_with_llm(text):
     """
@@ -301,57 +291,189 @@ def analyze_english_text_with_llm(text):
     
     numbered_depts = "\n".join([f"{i+1}. {dept}" for i, dept in enumerate(PRABHAG_ENG_LIST)])
 
+    DEPT_DESCRIPTIONS = {
+        #1: "ration shops fair price shop ration card food grains public distribution consumer complaints",
+        1: "ration shops fair price shop ration card food grains public distribution consumer complaints LPG PNG LNG gas cylinder distribution ",
+        2: "tribal welfare tribal education tribal hostel tribal development schemes",
+        3: "hospital doctor nurse phc chc medicine pharmacy food adulteration food license health services",
+        5: "mining illegal sand mining quarry mineral extraction",
+        6: "cottage industry handicraft rural industry village industry",
+        7: "tourism pilgrimage temple tourism tourist facilities",
+        8: "electricity gas cylinders power supply transformer electric pole electrocution power grid",
+        9: "climate change environmental sustainability global warming",
+        10: "legal department court cases government legal advice",
+        11: "farmer agriculture crop fertilizer seeds crop insurance apmc",
+        12: "animal husbandry dairy cattle breeding milk cooperative fisheries fishermen",
+        13: "police crime theft robbery murder fir law and order traffic police",
+        15: "irrigation canal irrigation water agricultural irrigation dam",
+        16: "narmada project sardar sarovar dam narmada river project kalpsar",
+        17: "drinking water pipeline water supply scheme water shortage",
+        19: "gst tax commercial tax government revenue finance",
+        22: "village / gram panchayat rural governance rural development mgnrega grameen",
+        23: "rural housing village development",
+        24: "bus gsrtc bus depot bus stand rto public transport",
+        27: "land records 7-12 mamlatdar talati land dispute land survey",
+        28: "anganwadi women welfare child nutrition",
+        29: "road pothole bridge state highway road construction",
+        30: "government publicity information broadcasting",
+        31: "sports playground sports complex indoor games outdoor games khelo india",
+        32: "forest environment pollution wildlife conservation",
+        33: "parliamentary affairs legislative coordination",
+        36: "legislative assembly proceedings",
+        37: "science research technology innovation",
+        38: "scholarship social welfare sc st obc welfare scheme",
+        39: "municipal corporation garbage drainage sewer sanitation stray cattle fire safety",
+        41: "primary school secondary school education teachers",
+        42: "college university technical education higher education",
+        43: "labour workers employment worker rights",
+        44: "government recruitment gpsc administrative reforms",
+        45: "government planning outcome budget district planning",
+        50: "national highway nhai highway construction",
+        51: "railway train railway station rail transport",
+    }
+
     prompt_prabhag = (
-        f"TASK: You are a Gujarat Government department classifier. Your job is to classify the given text to exactly ONE department from the numbered list below.\n\n"
-        f"STRICT OUTPUT RULES:\n"
-        f"1. Output ONLY the exact department name from the list - nothing else\n"
-        f"2. Copy the department name character-by-character exactly as written\n"
-        f"3. NO explanations, NO reasoning, NO additional text\n"
-        f"4. NO department numbers or IDs in output\n"
-        f"5. Output must be in English only\n"
-        f"6. Do NOT translate or modify the department name\n"
-        f"7. Output on a single line only\n\n"
-        f"DEPARTMENT CLASSIFICATION HINTS:\n"
-        f"- Police, crime, security, law & order → Home Department\n"
-        f"- Schools, primary education → Education Department (Primary & Secondary Education)\n"
-        f"- Colleges, universities, technical → Education Department (Higher & Technical Education)\n"
-        f"- Farmers, crops, agriculture → Agriculture, Farmer Welfare & Co-operation Department\n"
-        f"- Cattle, dairy, fishing → Agriculture, Farmer Welfare & Co-operation Department (Animal Husbandry, Cow Breeding, Fisheries, Co-operation)\n"
-        f"- Roads, bridges, causeway → Road & Building Department\n"
-        f"- Electricity, power, petroleum → Energy & Petrochemicals Department\n"
-        f"- Water supply → Narmada, Water Resourses, Water Supply & Kalpasar Department (Water Supply)\n"
-        f"- Irrigation, canals → Narmada, Water Resourses, Water Supply & Kalpasar Department (Irrigation)\n"
-        f"- Dams, Narmada river → Narmada, Water Resourses, Water Supply & Kalpasar Department (Narmada)\n"
-        f"- Women, children, ICDS, anganwadi → Women & Child Development Department\n"
-        f"- Hospitals, doctors, medical → Health & Family Welfare Department (Public Health & Family Welfare)\n"
-        f"- Medical education, nursing → Health & Family Welfare Department (Health)\n"
-        f"- Budget, finance, taxation → Finance Department\n"
-        f"- Village, panchayat, gram sabha → Panchayat, Rural Housing & Rural Development Department\n"
-        f"- City, municipality, urban → Urban Development & Urban Housing Department\n"
-        f"- Forests, wildlife → Forest & Environment Department\n"
-        f"- Industries, factories, manufacturing, GIDC → Industries & Mines Department\n"
-        f"- Tourism, pilgrimage, temples → Industries & Mines Department (Tourism, Pilgrimage, Devsthanam Management)\n"
-        f"- Ports, ships, maritime → Ports & Transport Department (Ports)\n"
-        f"- Vehicles, RTO, transport → Ports & Transport Department (Transport)\n"
-        f"- Sports, youth, culture → Sports, Youth & Cultural Activities Department\n"
-        f"- Land revenue, collector → Revenue Department\n"
-        f"- Ration, PDS, consumer → Food, Civil Supplies & Consumer Affairs Department\n"
-        f"- Labour, workers, employment → Labour & Employment Department\n"
-        f"- SC/ST welfare, disabled → Social Justice & Empowerment Department\n"
-        f"- Chief Minister related → CMO\n"
-        f"- Chief Secretary related → CS Office\n"
-        f"- Media, press, broadcasting → Information & Broadcasting Department\n"
-        f"- Climate, carbon, green initiatives → Climate change Department\n"
-        f"- Assembly, legislature → Legislative & Parliamentary Affairs Department\n"
-        f"- Election, voting, transfer → General Administration Department (Election)\n"
-        f"- Science, research, technology → Science & Technology Department\n"
-        f"- Legal, courts, judiciary → Legal Department\n\n"
-        f"NUMBERED DEPARTMENT LIST:\n"
-        f"{numbered_depts}\n\n"
-        f"TEXT TO CLASSIFY:\n"
-        f"\"\"\"{text}\"\"\"\n\n"
-        f"DEPARTMENT NAME:"
-    )
+            "You are an expert Gujarat government grievance classification system. "
+            "Read the news text carefully and return the SINGLE department ID most responsible for resolving the issue.\n\n"
+
+            "DEPARTMENT LIST (ID : Name : Keywords):\n" +
+            "\n".join([f"{k} : {v} : {DEPT_DESCRIPTIONS.get(k, '')}" for k, v in DEPT_MAPPING.items()]) + "\n\n"
+
+                                                                                                          "CLASSIFICATION RULES (apply in priority order):\n"
+                                                                                                          "R1.  National highway / NHAI work or accident                          → 50\n"
+                                                                                                          "R2.  State road / pothole / bridge / road contractor / PWD             → 29\n"
+                                                                                                          "R3.  Railway / train services / station                                → 51\n"
+                                                                                                          "R4.  GSRTC bus / ST bus / bus depot / RTO                              → 24\n"
+                                                                                                          #"R5.  Ration shop / Fair Price Shop / PDS / ration card                 → 1\n"
+                                                                                                          
+"R5.  Ration shop / Fair Price Shop / PDS / ration card / LPG / Gas Cylinder / PNG / LNG                  → 1\n"
+"R6.  7-12 / mamlatdar / talati / land record / land scam               → 27\n"
+                                                                                                          "R7.  Farmer / crop / fertilizer / APMC / crop insurance                → 11\n"
+                                                                                                          "R8.  Fishermen / animal husbandry / dairy / milk cooperative           → 12\n"
+                                                                                                          "R9.  Hospital / doctor / PHC / CHC / medicine / food adulteration / food license     → 3\n"
+                                                                                                          #"R10. Electricity / electric pole / electrocution / power supply / GEB / PNG gas → 8\n"
+"R10. Electricity / electric pole / electrocution / power supply / GEB  → 8\n"
+                                                                                                          
+"R11. Scholarship / SC-ST-OBC welfare / social justice scheme           → 38\n"
+                                                                                                          "R12. Primary / secondary school / teachers / textbooks                 → 41\n"
+                                                                                                          "R13. College / university / MBA / technical education                  → 42\n"
+                                                                                                          "R14. Anganwadi / women & child nutrition / bal vatika                  → 28\n"
+                                                                                                          "R15. Municipal corporation / city garbage / city sewer / stray cattle / urban fire → 39\n"
+                                                                                                          "R16. Village panchayat / rural development / MGNREGA / grameen         → 22\n"
+                                                                                                          "R17. Sand mining / illegal mining / stone quarry                       → 5\n"
+                                                                                                          "R18. Pollution / forest / wildlife conservation                        → 32\n"
+                                                                                                          "R19. GST / commercial tax / revenue / finance                          → 19\n"
+                                                                                                          "R20. Crime / murder / theft / robbery / law & order / traffic police   → 13\n"
+                                                                                                          "R21. GPSC recruitment / government service / election / admin reforms  → 44\n"
+                                                                                                          "R22. Drinking water pipeline / water supply scheme                     → 17\n"
+                                                                                                          "R23. Irrigation canal / agricultural water                             → 15\n"
+                                                                                                          "R24. Tribal welfare / tribal education                                 → 2\n\n"
+
+                                                                                                          "CONFLICT RULES:\n"
+                                                                                                          "- Urban road dug by municipality but not repaired → 39 (municipal issue, not 29)\n"
+                                                                                                          "- Scholarship for tribal students → 38 (not 2)\n"
+                                                                                                          "- Traffic congestion / traffic management in city → 13\n"
+                                                                                                          "- Accident caused by bad state road → 29\n"
+                                                                                                          "- Accident caused by bad national highway → 50\n"
+                                                                                                          "- Rural sanitation / open defecation → 22; urban sanitation / sewer → 39\n"
+                                                                                                          "- Crime at hospital/school/road: classify by the CORE issue (corruption in school=41, theft=13)\n\n"
+                                                                                                          "- Shortage of LPG gas cylinders → 1 (not 8)\n\n"
+                                                                                                           
+                                                                                                          "EXAMPLES:\n\n"
+
+                                                                                                          "Input: There has been increasing resentment among traders over the harassment by GST inspectors. "
+                                                                                                          "Traders starting business with a new GST number are put to hardship by the GST department.\n"
+                                                                                                          "Output: 19\n\n"
+
+                                                                                                          "Input: Stray cattle are terrorising residential areas of Gandhinagar city. "
+                                                                                                          "The problem is increasing day by day in the state capital.\n"
+                                                                                                          "Output: 39\n\n"
+
+                                                                                                          "Input: Poor quality ration is being distributed in Amraiwadi. Some ration shops are supplying "
+                                                                                                          "adulterated paddy and plastic shredded rice to people from poorer sections.\n"
+                                                                                                          "Output: 1\n\n"
+
+                                                                                                          "Input: In Anand district the mamlatdar office e-Dhara has a no-work policy. "
+                                                                                                          "Employees do not hesitate to take bribes. Deputy mamlatdars have been caught red-handed.\n"
+                                                                                                          "Output: 27\n\n"
+
+                                                                                                          "Input: Farmers in Saurashtra are protesting because they have not received the insurance money "
+                                                                                                          "for their cotton crops destroyed by unseasonal rain.\n"
+                                                                                                          "Output: 11\n\n"
+
+                                                                                                          "Input: Serious irregularities are taking place in government schemes and subsidies given to "
+                                                                                                          "fishermen and small boat owners in major ports including Okha and Porbandar.\n"
+                                                                                                          "Output: 12\n\n"
+
+                                                                                                          "Input: The condition of the State Highway connecting Rajkot and Jamnagar is pathetic. "
+                                                                                                          "Big potholes are causing accidents daily.\n"
+                                                                                                          "Output: 29\n\n"
+
+                                                                                                          "Input: A memorandum was submitted regarding the disorganized bus system at Dharampur bus station. "
+                                                                                                          "Complaints have been raised about non-arrival of GSRTC buses on several routes.\n"
+                                                                                                          "Output: 24\n\n"
+
+                                                                                                          "Input: The government hospital in Seemalia village has no surgeon or gynaecologist. "
+                                                                                                          "Poor tribal people are forced to go to private hospitals or deliver at risk at home.\n"
+                                                                                                          "Output: 3\n\n"
+
+                                                                                                          "Input: Electrocution death reported after a high-tension electric pole collapsed in Bharuch. "
+                                                                                                          "The GEB has not replaced the damaged transformer for three days.\n"
+                                                                                                          "Output: 8\n\n"
+
+                                                                                                          "Input: 1379 bicycles purchased under the Saraswati Sadhana Yojana have not been distributed "
+                                                                                                          "to girl students due to fault of the authorities.\n"
+                                                                                                          "Output: 38\n\n"
+
+                                                                                                          "Input: Primary school in Waghai taluka has salary sanctioned for 6 teachers but only 2 are present. "
+                                                                                                          "The headmaster is also frequently absent.\n"
+                                                                                                          "Output: 41\n\n"
+
+                                                                                                          "Input: Students and parents of an MBA college in Porbandar protested vehemently after the "
+                                                                                                          "principal forgot to fill their examination forms.\n"
+                                                                                                          "Output: 42\n\n"
+
+                                                                                                          "Input: Anganwadi workers in Patan district have not received their honorarium for 4 months. "
+                                                                                                          "Children's nutrition supplements are also not being distributed.\n"
+                                                                                                          "Output: 28\n\n"
+
+                                                                                                          "Input: Piles of garbage have accumulated in the eastern zone of the city. "
+                                                                                                          "The Municipal Corporation has failed to collect waste for a week.\n"
+                                                                                                          "Output: 39\n\n"
+
+                                                                                                          "Input: Unknown mafias are running illegal sand-laden vehicles from the Banas river bed in Deesa. "
+                                                                                                          "Villagers demand a ban on sand mining vehicles.\n"
+                                                                                                          "Output: 5\n\n"
+
+                                                                                                          "Input: The GPSC Committee Board submitted a memorandum demanding action against casteist elements "
+                                                                                                          "in the government recruitment system violating SC/ST constitutional rights.\n"
+                                                                                                          "Output: 44\n\n"
+
+                                                                                                          "Input: A jeweller was looted at gunpoint in the market area. The police arrived late.\n"
+                                                                                                          "Output: 13\n\n"
+
+                                                                                                          "Input: Traffic jams at Rajkot Road near Subhash Bridge are a daily affair due to heavy vehicles "
+                                                                                                          "crossing. Residents demand smooth traffic regulation.\n"
+                                                                                                          "Output: 13\n\n"
+
+                                                                                                          "Input: Food adulteration found in Mahadev Trading Company — non-permitted synthetic colorants "
+                                                                                                          "detected in red chili powder along with wheat and rice starch.\n"
+                                                                                                          "Output: 3\n\n"
+
+                                                                                                          "Input: In Surat's Varachha zone the Pay and Park contract has ended but the new tendering process "
+                                                                                                          "is delayed, causing daily revenue loss to the Municipal Corporation.\n"
+                                                                                                          "Output: 39\n\n"
+
+                                                                                                          "Input: On the main road in Patan town a municipality sewer line was laid but potholes were not "
+                                                                                                          "repaired after work completion, causing accidents to bikers at night.\n"
+                                                                                                          "Output: 39\n\n"
+
+                                                                                                          "Output Requirement: Return ONLY the department ID number — a single integer (e.g. 19)."
+
+                                       f"INPUT TEXT:\n'{text}'\n\n"
+                                       "PREDICTED ID: "
+
+)
     
     try:
         resp_prabhag = _call_vllm(prompt_prabhag, json_mode=False)
@@ -378,19 +500,61 @@ def classify_personal_tragedy_crime(text):
     truncated_text = str(text)[:2048]
 
     system_prompt = (
-    "You are a strict news classifier. Analyze the provided news text and output ONLY '1' or '0'.\n\n"
-    "CLASSIFICATION RULES:\n"
-    "Return '1' (BLOCK THIS CONTENT) if ANY of the following are true:\n"
-    "1. ROAD ACCIDENTS: Any vehicle collisions or traffic-related mishaps.\n"
-    "2. RESOLVED/ACTIONED INCIDENTS: Any crime or incident where authorities have ALREADY taken action "
-    "(e.g., 'Police arrested', 'FIR registered', 'Case filed', 'Accused caught', 'Probe ordered', 'Court judgement').\n"
-    "3. PERSONAL SUICIDES: Suicides due to personal reasons (family disputes, love affairs, exams, debt, depression) "
-    "that DO NOT involve allegations against the State Government or officials.\n\n"
-    "Return '0' (KEEP THIS CONTENT) if:\n"
-    "1. GOVERNMENT/SYSTEMIC FAULT: Suicides or tragedies blamed on government negligence, official harassment, court orders for government agencies or policy failure.\n"
-    "2. UNRESOLVED CRIMES: Heinous crimes or law & order situations where NO police action/arrest is mentioned yet.\n"
-    "3. OTHER: General negative news that requires prompt action from government\n\n"
-    "Output Requirement: Return ONLY the number '1' or '0'. No explanation."
+
+        "You are a strict news classifier. Analyze the provided news text and output ONLY '1' or '0'.\n\n"
+
+        "CLASSIFICATION RULES:\n"
+        "Return '1' (BLOCK THIS CONTENT) if ANY of the following are true:\n"
+        "1. ROAD ACCIDENTS: Any vehicle collisions or traffic-related mishaps.\n"
+        "2. RESOLVED/ACTIONED INCIDENTS: Any crime or theft or incident where authorities have ALREADY taken action "
+        "(e.g., 'Police arrested', 'FIR registered', 'Case filed', 'Accused caught', 'Probe ordered', 'Court judgement').\n"
+        "3. SUICIDES: Suicides due to personal reasons (family disputes, love affairs, exams, debt, depression) by consuming poison, hanging, jumping from building/bridge "
+        "that DO NOT involve allegations against the State Government or officials.\n"
+        "4. DEATHS: Death of a person due to natural causes like heart attack/ailments that do not require State Government involvement.\n"
+        "5. PRIVATE/CIVIL DISPUTES & NOTICES: Public notices, missing persons, or cyber fraud where a case is already registered.\n\n"
+
+        "Return '0' (KEEP THIS CONTENT) if:\n"
+        "1. GOVERNMENT/SYSTEMIC FAULT: Suicides or tragedies blamed on government negligence, official harassment, court orders for government agencies or policy failure.\n"
+        "2. UNRESOLVED CRIMES: Heinous crimes or law & order situations where NO police action/arrest is mentioned yet.\n"
+        "3. OTHER: General negative news that requires prompt action from government.\n\n"
+
+        "EXAMPLES:\n\n"
+
+        "Input: A tragic road accident occurred on the highway where a truck collided with a motorcycle, resulting in the death of the rider.\n"
+        "Output: 1\n\n"
+
+        "Input: The city police have arrested the main accused involved in the bank robbery. An FIR has been registered and the investigation is ongoing.\n"
+        "Output: 1\n\n"
+
+        "Input: Distressed over family disputes and mounting personal debt, a 35-year-old man committed suicide by consuming poison at his residence.\n"
+        "Output: 1\n\n"
+
+        "Input: Two groups fought in public over a parking issue. One person attacked another with a sharp weapon. Police reached the spot and nabbed the attackers.\n"
+        "Output: 1\n\n"
+
+        "Input: A software engineer lost Rs 50,000 due to online cyber fraud. A case has been filed with the Cyber Crime cell.\n"
+        "Output: 1\n\n"
+
+        "Input: A senior citizen passed away this morning due to a sudden heart attack while returning from the market.\n"
+        "Output: 1\n\n"
+
+        "Input: A complaint has been filed regarding a teenager who went missing yesterday evening.\n"
+        "Output: 1\n\n"
+
+        "Input: This Public Notice informs the public and all concerned, if any person, institution, or any person has a dispute with respect to the sale, mortgage, or any other kind of encumbrance of the said property, please contact the undersigned.\n"
+        "Output: 1\n\n"
+
+        "Input: Villagers are protesting against the electricity department, alleging that a loose wire caused the death of three farmers. No officials have visited the spot yet.\n"
+        "Output: 0\n\n"
+
+        "Input: A jeweller was shot dead in broad daylight by unidentified assailants. The attackers escaped and police is yet to take any action yet.\n"
+        "Output: 0\n\n"
+
+        "Input: A farmer committed suicide, leaving a note blaming the Tehsildar for demanding bribes and harassment regarding land records.\n"
+        "Output: 0\n\n"
+
+        "Output Requirement: Return strictly ONLY the number '1' or '0'. No explanation."
+
     )
 
     payload = {
