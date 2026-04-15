@@ -12,6 +12,7 @@ import tempfile
 import time
 import requests
 import joblib
+import uuid # <--- Add this import
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
@@ -664,8 +665,16 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                 print(f"{is_govt, govt_word, category, cat_word, district, taluka, cat_id, dcode, tcode, prabhag_name, prabhag_ID} --- model_pred: {model_pred} ")
                 
                 # save crop image
-                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                img_name = f"article_{page_num+1}_{i+1}_{ts}.png"
+                # Extract a safe, short version of the PDF name (remove spaces/special chars)
+                safe_pdf_name = re.sub(r'[^a-zA-Z0-9]', '', os.path.basename(pdf_path).split('.')[0])[:15]
+                
+                # Add Microseconds (%f) and a random short UUID
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                unique_id = uuid.uuid4().hex[:6]
+                
+                # Construct a guaranteed unique filename
+                img_name = f"{safe_pdf_name}_p{page_num+1}_b{i+1}_{ts}_{unique_id}.png"
+                
                 save_path = os.path.join(settings.MEDIA_ROOT, "articles", img_name)
                 os.makedirs(os.path.dirname(save_path), exist_ok=True)
                 cv2.imwrite(save_path, crop)
