@@ -352,7 +352,7 @@ def _normalize_blocks(blocks, article_height):
 # ==============================================================================
 # 4. MAIN PROCESS FUNCTION
 # ==============================================================================
-def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=False, article_district=None, is_connect=False, is_urgent=False, uuid=False, NewsPaper_UploadDate=""):
+def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=False, article_district=None, is_connect=False, is_urgent=False, uuid_argument=False, NewsPaper_UploadDate=""):
     
     # 🔥 CRITICAL: Load models ONLY when the task starts
     load_models_if_needed()
@@ -809,8 +809,8 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     # keep is_urgent as passed (you can force if desired)
                     # is_urgent = True  # optional: force urgent for manual articles
 
-                if uuid:
-                    uuid = int(uuid)
+                if uuid_argument:
+                    uuid_argument = int(uuid_argument)
 
                 article = ArticleInfo.objects.create(
                     pdf_name=final_newspaper_name if final_newspaper_name else "NA",
@@ -846,7 +846,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     is_govt_llm_confidence = conf_llm ,
                     embedding = vec, # Save vector to DB
                     is_urgent = is_urgent,
-                    extra_flag_text = uuid if uuid else 0, 
+                    extra_flag_text = uuid_argument if uuid_argument else 0,
                     is_sentiment_llm = sentiment_llm, 
                     article_type_pred = article_type_pred,
                     is_similar = is_similar,
@@ -877,7 +877,7 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                             1 if article.is_urgent else 0,                         # 18 - @Is_Urgent INT (1/0)
                             1 if article.is_duplicate else 0,                      # 19 - @Is_Duplicate INT (1/0)
                             article.duplicate_id if article.duplicate_id else 0 ,  # 20 - @Duplicate_AI_ID INT
-                            uuid if uuid else 0 ,                                  # 21 - @UUID INT
+                            uuid_argument if uuid_argument else 0 ,                                  # 21 - @UUID INT
                             uploadType,                                            # 22 - @UploadType NVARCHAR(50)
                             NewsPaper_UploadDate
                     )

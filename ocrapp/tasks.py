@@ -2,7 +2,7 @@ from celery import shared_task
 from .utils.ocr_utils import process_pdf
 
 @shared_task(bind=True)
-def process_pdf_task(self, pdf_path, news_paper, pdf_link, lang, is_article, article_district, is_connect, is_urgent, uuid, NewsPaper_UploadDate):
+def process_pdf_task(self, pdf_path, news_paper, pdf_link, lang, is_article, article_district, is_connect, is_urgent, uuid_argument, NewsPaper_UploadDate):
     try:
         # This runs on the GPU worker
         print(f"Started processing: {pdf_path}")
@@ -15,7 +15,7 @@ def process_pdf_task(self, pdf_path, news_paper, pdf_link, lang, is_article, art
             article_district=article_district,
             is_connect=is_connect,
             is_urgent=is_urgent,
-            uuid=uuid,
+            uuid_argument=uuid_argument,
             NewsPaper_UploadDate=NewsPaper_UploadDate
         )
         return "Success"

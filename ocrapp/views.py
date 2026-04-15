@@ -86,7 +86,7 @@ def ocr_upload_view(request):
                 'article_district': district_param,
                 'is_connect': is_connect, 
                 'is_urgent': is_urgent,
-                'uuid': uuid,
+                'uuid_argument': uuid,
                 'NewsPaper_UploadDate': NewsPaper_UploadDate
             },
             queue=queue_name
