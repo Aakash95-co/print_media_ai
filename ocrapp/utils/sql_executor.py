@@ -40,6 +40,7 @@ def insert_news_analysis_entry(article_info_insert):
                 @uuid  = ?,               -- 21 (NEW)      
                 @UploadType = ? ,         -- 22 (NEW)
                 @NewsPaper_UploadDate = ? -- 23 (NEW)
+                @Is_NHAI int= ? 
         """, article_info_insert)
 
         conn.commit()

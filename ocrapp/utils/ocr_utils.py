@@ -467,7 +467,10 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
 
                 # --- LLM OBSERVATION START ---
                 cate_llm, is_govt_llm, conf_llm, sentiment_llm, prabhag_llm, prabhag_id_llm = analyze_english_text_with_llm(eng_text)
-                
+                is_nhai = 0
+                if 'NHAI' in prabhag_llm:
+                    is_nhai = 1
+                    prabhag_llm = "Road & Building Department (State Highways, Govt Buildings)"
                 # Derive cat_id_llm using mapping
                 cat_id_llm = GovtInfo.govt_cat_id_mapping.get(cate_llm, None)
 
@@ -851,10 +854,11 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                     article_type_pred = article_type_pred,
                     is_similar = is_similar,
                     NewsPaper_UploadDate=NewsPaper_UploadDate,
-                    is_municipal_commissioner="True" if civic_prediction == 1 else "False"
+                    is_municipal_commissioner="True" if civic_prediction == 1 else "False",
+                    is_nhai = is_nhai,
                 )
                 print(article.image)
-                if is_govt_push_nic and 1==0: # hooked added on 2-apr-2026
+                if is_govt_push_nic: # and 1==0: # hooked added on 2-apr-2026 - 29-apr-2026
                     #insert_news_analysis_entry(article)
                     article_info_insert = (
                             article.page_number or 1,                              # 1 -> @Page_id INT
@@ -879,7 +883,8 @@ def process_pdf(pdf_path, news_paper="", pdf_link="", lang="gu", is_article=Fals
                             article.duplicate_id if article.duplicate_id else 0 ,  # 20 - @Duplicate_AI_ID INT
                             uuid_argument if uuid_argument else 0 ,                                  # 21 - @UUID INT
                             uploadType,                                            # 22 - @UploadType NVARCHAR(50)
-                            NewsPaper_UploadDate
+                            NewsPaper_UploadDate,
+                            is_nhai
                     )
 
                     # --------------------------------------------

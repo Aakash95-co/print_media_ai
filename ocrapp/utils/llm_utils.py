@@ -474,14 +474,15 @@ def analyze_english_text_with_llm(text):
                                        "PREDICTED ID: "
 
 )
-    
+
     try:
         resp_prabhag = _call_vllm(prompt_prabhag, json_mode=False)
         picked_prabhag = _pick_prabhag(resp_prabhag)
 
         if picked_prabhag:
-            prabhag_name = picked_prabhag["eng"]
             prabhag_id = picked_prabhag["id"]
+            # Fetch the name from DEPT_MAPPING instead of PRABHAG_DATA
+            prabhag_name = DEPT_MAPPING.get(prabhag_id, picked_prabhag["eng"])
     except Exception as e:
         print(f"⚠️ Prabhag Classification Error: {e}")
 
