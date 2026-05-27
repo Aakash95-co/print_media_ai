@@ -17,3 +17,4 @@ nano
 start_max_power.sh
 stop_system.sh
 
+print_media/settings.py
