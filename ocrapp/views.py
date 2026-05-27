@@ -1,10 +1,12 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from .models import ArticleInfo
 from .serializers import ArticleInfoSerializer
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework.decorators import api_view
 from django.conf import settings
 import os
 from datetime import datetime
@@ -21,6 +23,8 @@ from django.utils.dateparse import parse_date
 
 @csrf_exempt
 @api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def ocr_upload_view(request):
     if request.method == 'POST':
         file = request.FILES.get("file")
@@ -141,6 +145,9 @@ def ocr_upload_view(request):
 
 
 class ArticleListView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         # 1. Start with the base QuerySet
         qs = ArticleInfo.objects.all().order_by("-created_at")
